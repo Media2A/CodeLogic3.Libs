@@ -22,6 +22,22 @@ public class SQLiteTableAttribute : Attribute
 }
 
 /// <summary>
+/// Specifies an index on a table (supports composite indexes).
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+public class SQLiteIndexAttribute : Attribute
+{
+    public string[] Columns { get; }
+    public bool IsUnique { get; set; }
+    public string? Name { get; set; }
+
+    public SQLiteIndexAttribute(params string[] columns)
+    {
+        Columns = columns;
+    }
+}
+
+/// <summary>
 /// Specifies properties for a SQLite database column
 /// </summary>
 [AttributeUsage(AttributeTargets.Property)]

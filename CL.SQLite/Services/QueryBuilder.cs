@@ -25,10 +25,10 @@ public class QueryBuilder<T> where T : class, new()
     private readonly ConnectionManager _connectionManager;
     private readonly ILogger _logger;
 
-    public QueryBuilder(ConnectionManager connectionManager, ILogger logger)
+    public QueryBuilder(ConnectionManager connectionManager, ILogger? logger = null)
     {
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger ?? new NullLogger();
 
         var tableAttr = typeof(T).GetCustomAttribute<SQLiteTableAttribute>();
         _tableName = tableAttr?.TableName ?? typeof(T).Name;
@@ -193,14 +193,14 @@ public class QueryBuilder<T> where T : class, new()
     {
         try
         {
-            var sql = BuildSelectQuery();
+            var sql = BuildSelectQuery(out var parameters);
             var startTime = DateTime.UtcNow;
 
             return await _connectionManager.ExecuteAsync(async connection =>
             {
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = sql;
-                AddParametersToCommand(cmd);
+                AddParametersToCommand(cmd, parameters);
 
                 using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
                 var entities = new List<T>();
@@ -245,13 +245,13 @@ public class QueryBuilder<T> where T : class, new()
         try
         {
             // Get total count
-            var countQuery = BuildCountQuery();
+            var countQuery = BuildCountQuery(out var countParameters);
 
             var totalItems = await _connectionManager.ExecuteAsync(async connection =>
             {
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = countQuery;
-                AddParametersToCommand(cmd);
+                AddParametersToCommand(cmd, countParameters);
 
                 return Convert.ToInt64(await cmd.ExecuteScalarAsync(cancellationToken));
             }, cancellationToken);
@@ -289,13 +289,13 @@ public class QueryBuilder<T> where T : class, new()
     {
         try
         {
-            var countQuery = BuildCountQuery();
+            var countQuery = BuildCountQuery(out var countParameters);
 
             return await _connectionManager.ExecuteAsync(async connection =>
             {
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = countQuery;
-                AddParametersToCommand(cmd);
+                AddParametersToCommand(cmd, countParameters);
 
                 var count = Convert.ToInt64(await cmd.ExecuteScalarAsync(cancellationToken));
                 return Result<long>.Success(count);
@@ -313,10 +313,10 @@ public class QueryBuilder<T> where T : class, new()
     /// </summary>
     public string ToSql()
     {
-        return BuildSelectQuery();
+        return BuildSelectQuery(out _);
     }
 
-    private string BuildSelectQuery()
+    private string BuildSelectQuery(out Dictionary<string, object?> parameters)
     {
         var sb = new StringBuilder();
 
@@ -351,28 +351,14 @@ public class QueryBuilder<T> where T : class, new()
         // WHERE clause
         if (_whereConditions.Any())
         {
+            var where = WhereClauseBuilder.Build(_whereConditions);
             sb.Append(" WHERE ");
-            for (int i = 0; i < _whereConditions.Count; i++)
-            {
-                var condition = _whereConditions[i];
-                if (i > 0)
-                    sb.Append($" {condition.LogicalOperator} ");
-
-                if (condition.Operator.Equals("IN", StringComparison.OrdinalIgnoreCase) &&
-                    condition.Value is Array arr)
-                {
-                    var paramNames = new List<string>();
-                    for (int j = 0; j < arr.Length; j++)
-                    {
-                        paramNames.Add($"@p{i}_{j}");
-                    }
-                    sb.Append($"{condition.Column} IN ({string.Join(", ", paramNames)})");
-                }
-                else
-                {
-                    sb.Append($"{condition.Column} {condition.Operator} @p{i}");
-                }
-            }
+            sb.Append(where.Clause);
+            parameters = where.Parameters;
+        }
+        else
+        {
+            parameters = new Dictionary<string, object?>();
         }
 
         // GROUP BY clause
@@ -403,59 +389,31 @@ public class QueryBuilder<T> where T : class, new()
         return sb.ToString();
     }
 
-    private string BuildCountQuery()
+    private string BuildCountQuery(out Dictionary<string, object?> parameters)
     {
         var sb = new StringBuilder();
         sb.Append($"SELECT COUNT(*) FROM {_tableName}");
 
-        // WHERE clause
         if (_whereConditions.Any())
         {
+            var where = WhereClauseBuilder.Build(_whereConditions);
             sb.Append(" WHERE ");
-            for (int i = 0; i < _whereConditions.Count; i++)
-            {
-                var condition = _whereConditions[i];
-                if (i > 0)
-                    sb.Append($" {condition.LogicalOperator} ");
-
-                if (condition.Operator.Equals("IN", StringComparison.OrdinalIgnoreCase) &&
-                    condition.Value is Array arr)
-                {
-                    var paramNames = new List<string>();
-                    for (int j = 0; j < arr.Length; j++)
-                    {
-                        paramNames.Add($"@p{i}_{j}");
-                    }
-                    sb.Append($"{condition.Column} IN ({string.Join(", ", paramNames)})");
-                }
-                else
-                {
-                    sb.Append($"{condition.Column} {condition.Operator} @p{i}");
-                }
-            }
+            sb.Append(where.Clause);
+            parameters = where.Parameters;
+        }
+        else
+        {
+            parameters = new Dictionary<string, object?>();
         }
 
         return sb.ToString();
     }
 
-    private void AddParametersToCommand(SqliteCommand cmd)
+    private void AddParametersToCommand(SqliteCommand cmd, Dictionary<string, object?> parameters)
     {
-        for (int i = 0; i < _whereConditions.Count; i++)
+        foreach (var (key, value) in parameters)
         {
-            var condition = _whereConditions[i];
-
-            if (condition.Operator.Equals("IN", StringComparison.OrdinalIgnoreCase) &&
-                condition.Value is Array arr)
-            {
-                for (int j = 0; j < arr.Length; j++)
-                {
-                    cmd.Parameters.AddWithValue($"@p{i}_{j}", arr.GetValue(j) ?? DBNull.Value);
-                }
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue($"@p{i}", condition.Value ?? DBNull.Value);
-            }
+            cmd.Parameters.AddWithValue(key, value ?? DBNull.Value);
         }
     }
 
@@ -476,7 +434,7 @@ public class QueryBuilder<T> where T : class, new()
 
                 if (value != DBNull.Value)
                 {
-                    prop.SetValue(entity, value);
+                    prop.SetValue(entity, Convert.ChangeType(value, prop.PropertyType));
                 }
             }
             catch

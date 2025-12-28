@@ -31,7 +31,9 @@ public class SchemaAnalyzer
         public bool AutoIncrement { get; set; }
         public bool NotNull { get; set; }
         public bool Unique { get; set; }
+        public bool IsIndexed { get; set; }
         public string? DefaultValue { get; set; }
+        public SQLiteForeignKeyAttribute? ForeignKey { get; set; }
         public string? Comment { get; set; }
     }
 
@@ -72,7 +74,9 @@ public class SchemaAnalyzer
                 AutoIncrement = columnAttr.IsAutoIncrement,
                 NotNull = columnAttr.IsNotNull,
                 Unique = columnAttr.IsUnique,
+                IsIndexed = columnAttr.IsIndexed,
                 DefaultValue = columnAttr.DefaultValue,
+                ForeignKey = property.GetCustomAttribute<SQLiteForeignKeyAttribute>(),
                 Comment = null
             };
 
@@ -201,11 +205,28 @@ public class SchemaAnalyzer
         sb.AppendLine($"CREATE TABLE IF NOT EXISTS {tableName} (");
 
         var columnDefs = new List<string>();
+        var primaryKeys = columns.Where(c => c.Primary).ToList();
+        var compositePrimaryKey = primaryKeys.Count > 1;
 
         foreach (var col in columns)
         {
-            var colDef = GenerateColumnDefinition(col);
+            var colDef = GenerateColumnDefinition(col, allowInlinePrimaryKey: !compositePrimaryKey);
             columnDefs.Add($"  {colDef}");
+        }
+
+        if (compositePrimaryKey)
+        {
+            var pkColumns = string.Join(", ", primaryKeys.Select(c => c.ColumnName));
+            columnDefs.Add($"  PRIMARY KEY ({pkColumns})");
+        }
+
+        foreach (var col in columns.Where(c => c.ForeignKey != null))
+        {
+            var fk = col.ForeignKey!;
+            var fkClause = $"  FOREIGN KEY ({col.ColumnName}) REFERENCES {fk.ReferencedTable}({fk.ReferencedColumn})";
+            fkClause += $" ON DELETE {ConvertForeignKeyAction(fk.OnDelete)}";
+            fkClause += $" ON UPDATE {ConvertForeignKeyAction(fk.OnUpdate)}";
+            columnDefs.Add(fkClause);
         }
 
         sb.Append(string.Join(",\n", columnDefs));
@@ -218,17 +239,17 @@ public class SchemaAnalyzer
     /// <summary>
     /// Generates a single column definition string.
     /// </summary>
-    private string GenerateColumnDefinition(ModelColumnDefinition col)
+    private string GenerateColumnDefinition(ModelColumnDefinition col, bool allowInlinePrimaryKey)
     {
         var sb = new StringBuilder();
         sb.Append($"{col.ColumnName} ");
         sb.Append(ConvertDataTypeToSQLite(col.DataType));
 
-        if (col.Primary && col.AutoIncrement)
+        if (allowInlinePrimaryKey && col.Primary && col.AutoIncrement)
         {
             sb.Append(" PRIMARY KEY AUTOINCREMENT");
         }
-        else if (col.Primary)
+        else if (allowInlinePrimaryKey && col.Primary)
         {
             sb.Append(" PRIMARY KEY");
         }
@@ -258,6 +279,38 @@ public class SchemaAnalyzer
     }
 
     /// <summary>
+    /// Generates SQL CREATE INDEX statements from model definition.
+    /// </summary>
+    public List<string> GenerateCreateIndexStatements(Type modelType, string tableName, List<ModelColumnDefinition> columns)
+    {
+        var statements = new List<string>();
+
+        foreach (var col in columns.Where(c => c.IsIndexed))
+        {
+            var indexName = $"idx_{tableName}_{col.ColumnName}";
+            var statement = $"CREATE INDEX IF NOT EXISTS {indexName} ON {tableName} ({col.ColumnName});";
+            statements.Add(statement);
+        }
+
+        var indexAttributes = modelType.GetCustomAttributes<SQLiteIndexAttribute>();
+        foreach (var indexAttr in indexAttributes)
+        {
+            if (indexAttr.Columns.Length == 0)
+                continue;
+
+            var name = string.IsNullOrWhiteSpace(indexAttr.Name)
+                ? $"idx_{tableName}_{string.Join("_", indexAttr.Columns)}"
+                : indexAttr.Name;
+
+            var unique = indexAttr.IsUnique ? "UNIQUE " : string.Empty;
+            var cols = string.Join(", ", indexAttr.Columns);
+            statements.Add($"CREATE {unique}INDEX IF NOT EXISTS {name} ON {tableName} ({cols});");
+        }
+
+        return statements;
+    }
+
+    /// <summary>
     /// Converts C# SQLiteDataType enum to SQLite data type string.
     /// </summary>
     private string ConvertDataTypeToSQLite(SQLiteDataType dataType)
@@ -273,6 +326,19 @@ public class SchemaAnalyzer
             SQLiteDataType.DATE => "DATE",
             SQLiteDataType.DATETIME => "DATETIME",
             _ => "TEXT"
+        };
+    }
+
+    private static string ConvertForeignKeyAction(ForeignKeyAction action)
+    {
+        return action switch
+        {
+            ForeignKeyAction.NoAction => "NO ACTION",
+            ForeignKeyAction.Restrict => "RESTRICT",
+            ForeignKeyAction.SetNull => "SET NULL",
+            ForeignKeyAction.SetDefault => "SET DEFAULT",
+            ForeignKeyAction.Cascade => "CASCADE",
+            _ => "NO ACTION"
         };
     }
 

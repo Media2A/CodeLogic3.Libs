@@ -1,6 +1,7 @@
 using CodeLogic.Abstractions;
 using CodeLogic.Logging;
 using CL.SQLite.Models;
+using Microsoft.Data.Sqlite;
 using System.Reflection;
 
 namespace CL.SQLite.Services;
@@ -177,6 +178,7 @@ public class TableSyncService
                         null,
                         createSql);
 
+                    await CreateIndexesAsync(connection, modelType, tableName, modelColumns, cancellationToken);
                     return true;
                 }
                 else
@@ -236,10 +238,17 @@ public class TableSyncService
                             _logger?.Warning($"  Column '{modelCol.ColumnName}' definition differs: model={modelCol.DataType}, db={dbCol.DataType}");
                         }
 
+                        await CreateIndexesAsync(connection, modelType, tableName, modelColumns, cancellationToken);
                         return true;
                     }
                     else
                     {
+                        await CreateIndexesAsync(connection, modelType, tableName, modelColumns, cancellationToken);
+                        if (modelColumns.Any(c => c.ForeignKey != null))
+                        {
+                            _logger?.Warning($"Table '{tableName}' exists; foreign key constraints cannot be added without a rebuild.");
+                        }
+
                         _logger?.Info($"Table '{tableName}' schema is in sync with model definition");
                         return true;
                     }
@@ -251,6 +260,22 @@ public class TableSyncService
                 return false;
             }
         }, cancellationToken);
+    }
+
+    private async Task CreateIndexesAsync(
+        SqliteConnection connection,
+        Type modelType,
+        string tableName,
+        List<SchemaAnalyzer.ModelColumnDefinition> modelColumns,
+        CancellationToken cancellationToken)
+    {
+        var indexStatements = _schemaAnalyzer.GenerateCreateIndexStatements(modelType, tableName, modelColumns);
+        foreach (var statement in indexStatements)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = statement;
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     /// <summary>

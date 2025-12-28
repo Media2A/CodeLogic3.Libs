@@ -30,7 +30,7 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
     public static (string Column, SortOrder Order) ParseOrderBy<T>(Expression<Func<T, object?>> expression)
     {
         var member = GetMemberExpression(expression.Body);
-        var columnName = member.Member.Name;
+        var columnName = ResolveColumnName(member.Member);
         return (columnName, SortOrder.Asc);
     }
 
@@ -40,7 +40,7 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
     public static (string Column, SortOrder Order) ParseOrderBy<T, TKey>(Expression<Func<T, TKey>> expression, bool descending = false)
     {
         var member = GetMemberExpression(expression.Body);
-        var columnName = member.Member.Name;
+        var columnName = ResolveColumnName(member.Member);
         return (columnName, descending ? SortOrder.Desc : SortOrder.Asc);
     }
 
@@ -57,12 +57,12 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
             {
                 var member = GetMemberExpression(arg);
                 if (member != null)
-                    columns.Add(member.Member.Name);
+                    columns.Add(ResolveColumnName(member.Member));
             }
         }
         else if (expression.Body is MemberExpression member)
         {
-            columns.Add(member.Member.Name);
+            columns.Add(ResolveColumnName(member.Member));
         }
 
         return columns;
@@ -81,12 +81,12 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
             {
                 var member = GetMemberExpression(arg);
                 if (member != null)
-                    columns.Add(member.Member.Name);
+                    columns.Add(ResolveColumnName(member.Member));
             }
         }
         else if (expression.Body is MemberExpression member)
         {
-            columns.Add(member.Member.Name);
+            columns.Add(ResolveColumnName(member.Member));
         }
 
         return columns;
@@ -100,7 +100,7 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
         var columns = new List<string>();
         var member = GetMemberExpression(expression.Body);
         if (member != null)
-            columns.Add(member.Member.Name);
+            columns.Add(ResolveColumnName(member.Member));
         return columns;
     }
 
@@ -156,7 +156,7 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
         if (member == null)
             return node;
 
-        var columnName = member.Member.Name;
+        var columnName = ResolveColumnName(member.Member);
         var value = GetValue(node.Right);
 
         if (value == null && node.Left.Type.IsValueType == false)
@@ -193,7 +193,7 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
         if (member == null)
             return node;
 
-        var columnName = member.Member.Name;
+        var columnName = ResolveColumnName(member.Member);
 
         // String methods
         if (method.Name == "Contains" && node.Object?.Type == typeof(string))
@@ -203,7 +203,7 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
             {
                 Column = columnName,
                 Operator = "LIKE",
-                Value = value,
+                Value = $"%{value}%",
                 LogicalOperator = _currentLogicalOperator
             });
         }
@@ -245,6 +245,21 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
                 });
             }
         }
+        else if (method.Name == "Contains" && node.Object == null && node.Arguments.Count == 2)
+        {
+            var values = GetValue(node.Arguments[0]);
+            if (values is System.Collections.IEnumerable enumerable)
+            {
+                var valueList = enumerable.Cast<object>().ToArray();
+                _conditions.Add(new WhereCondition
+                {
+                    Column = columnName,
+                    Operator = "IN",
+                    Value = valueList,
+                    LogicalOperator = _currentLogicalOperator
+                });
+            }
+        }
 
         return node;
     }
@@ -254,7 +269,7 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
         // Handle NOT expressions like !u.IsActive
         if (node.Operand is MemberExpression member && member.Type == typeof(bool))
         {
-            var columnName = member.Member.Name;
+            var columnName = ResolveColumnName(member.Member);
             _conditions.Add(new WhereCondition
             {
                 Column = columnName,
@@ -288,12 +303,16 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
 
         if (expression is MemberExpression member)
         {
-            var getMethod = ((PropertyInfo)member.Member).GetGetMethod();
-            if (getMethod != null)
+            var instance = GetValue(member.Expression);
+            if (member.Member is PropertyInfo prop)
             {
-                var instance = GetValue(member.Expression);
-                return getMethod.Invoke(instance, null);
+                var getMethod = prop.GetGetMethod();
+                if (getMethod != null)
+                    return getMethod.Invoke(instance, null);
             }
+
+            if (member.Member is FieldInfo field)
+                return field.GetValue(instance);
         }
 
         // Try to compile and evaluate the expression
@@ -309,5 +328,17 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
         {
             return null;
         }
+    }
+
+    private static string ResolveColumnName(MemberInfo member)
+    {
+        if (member is PropertyInfo prop)
+        {
+            var attr = prop.GetCustomAttribute<SQLiteColumnAttribute>();
+            if (!string.IsNullOrWhiteSpace(attr?.ColumnName))
+                return attr.ColumnName;
+        }
+
+        return member.Name;
     }
 }

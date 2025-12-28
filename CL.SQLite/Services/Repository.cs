@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.Data.Sqlite;
 using CL.SQLite.Models;
@@ -17,10 +18,10 @@ public class Repository<T> where T : class, new()
     private readonly string _tableName;
     private readonly PropertyInfo[] _properties;
 
-    public Repository(ConnectionManager connectionManager, ILogger logger)
+    public Repository(ConnectionManager connectionManager, ILogger? logger = null)
     {
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger ?? new NullLogger();
 
         // Get table name from attribute or use class name
         var tableAttr = typeof(T).GetCustomAttribute<SQLiteTableAttribute>();
@@ -45,12 +46,8 @@ public class Repository<T> where T : class, new()
                 if (colAttr?.IsAutoIncrement == true)
                     continue;
 
-                // Skip primary key columns (they should be auto-increment)
-                if (colAttr?.IsPrimaryKey == true)
-                    continue;
-
-                // Also skip the property named "Id" as a safety measure (likely auto-increment)
-                if (prop.Name == "Id" && colAttr?.ColumnName == null)
+                // Also skip the property named "Id" without attributes as a safety measure (likely auto-increment)
+                if (prop.Name == "Id" && colAttr?.ColumnName == null && colAttr?.IsPrimaryKey != true)
                     continue;
 
                 var columnName = colAttr?.ColumnName ?? prop.Name;
@@ -80,6 +77,56 @@ public class Repository<T> where T : class, new()
         {
             _logger.Error($"Failed to insert into {_tableName}", ex);
             return Result<long>.Failure(ex.Message, ex);
+        }
+    }
+
+    /// <summary>
+    /// Inserts or replaces a record based on primary key.
+    /// </summary>
+    public async Task<Result> UpsertAsync(T entity, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var columns = new List<string>();
+            var parameters = new List<string>();
+            var values = new Dictionary<string, object?>();
+
+            foreach (var prop in _properties)
+            {
+                var colAttr = prop.GetCustomAttribute<SQLiteColumnAttribute>();
+                if (colAttr?.IsAutoIncrement == true)
+                    continue;
+
+                if (prop.Name == "Id" && colAttr?.ColumnName == null && colAttr?.IsPrimaryKey != true)
+                    continue;
+
+                var columnName = colAttr?.ColumnName ?? prop.Name;
+                columns.Add(columnName);
+                parameters.Add($"@{columnName}");
+                values[columnName] = prop.GetValue(entity);
+            }
+
+            var sql = $"INSERT OR REPLACE INTO {_tableName} ({string.Join(", ", columns)}) VALUES ({string.Join(", ", parameters)});";
+
+            return await _connectionManager.ExecuteAsync(async conn =>
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = sql;
+
+                foreach (var kvp in values)
+                {
+                    cmd.Parameters.AddWithValue($"@{kvp.Key}", kvp.Value ?? DBNull.Value);
+                }
+
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
+                _logger.Debug($"Upserted record into {_tableName}");
+                return Result.Success();
+            }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to upsert into {_tableName}", ex);
+            return Result.Failure(ex.Message, ex);
         }
     }
 
@@ -234,6 +281,41 @@ public class Repository<T> where T : class, new()
         }
     }
 
+    /// <summary>
+    /// Deletes records matching a predicate.
+    /// </summary>
+    public async Task<Result<int>> DeleteWhereAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var conditions = ExpressionVisitor.Parse(predicate);
+            if (conditions.Count == 0)
+                return Result<int>.Failure("DeleteWhereAsync requires at least one condition");
+
+            var where = WhereClauseBuilder.Build(conditions);
+            var sql = $"DELETE FROM {_tableName} WHERE {where.Clause}";
+
+            return await _connectionManager.ExecuteAsync(async conn =>
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = sql;
+                foreach (var (key, value) in where.Parameters)
+                {
+                    cmd.Parameters.AddWithValue(key, value ?? DBNull.Value);
+                }
+
+                var affected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                _logger.Debug($"Deleted {affected} record(s) from {_tableName}");
+                return Result<int>.Success(affected);
+            }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to delete records from {_tableName}", ex);
+            return Result<int>.Failure(ex.Message, ex);
+        }
+    }
+
     private T MapFromReader(SqliteDataReader reader)
     {
         var entity = new T();
@@ -263,14 +345,21 @@ public class Repository<T> where T : class, new()
 
     private string GetPrimaryKeyColumn()
     {
+        var primaryKeys = new List<string>();
         foreach (var prop in _properties)
         {
             var colAttr = prop.GetCustomAttribute<SQLiteColumnAttribute>();
             if (colAttr?.IsPrimaryKey == true)
             {
-                return colAttr.ColumnName ?? prop.Name;
+                primaryKeys.Add(colAttr.ColumnName ?? prop.Name);
             }
         }
+
+        if (primaryKeys.Count > 1)
+            throw new InvalidOperationException($"Composite primary keys are not supported by Repository<{typeof(T).Name}>.");
+
+        if (primaryKeys.Count == 1)
+            return primaryKeys[0];
 
         return "Id"; // Default fallback
     }
