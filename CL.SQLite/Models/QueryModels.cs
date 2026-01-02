@@ -133,9 +133,18 @@ public record TableSyncResult
     /// </summary>
     public Exception? Exception { get; init; }
 
+    /// <summary>
+    /// Creates a successful synchronization result.
+    /// </summary>
+    /// <param name="message">Result message.</param>
     public static TableSyncResult Succeeded(string message) =>
         new() { Success = true, Message = message };
 
+    /// <summary>
+    /// Creates a failed synchronization result.
+    /// </summary>
+    /// <param name="message">Error message.</param>
+    /// <param name="exception">Optional exception.</param>
     public static TableSyncResult Failed(string message, Exception? exception = null) =>
         new() { Success = false, Message = message, Exception = exception };
 }

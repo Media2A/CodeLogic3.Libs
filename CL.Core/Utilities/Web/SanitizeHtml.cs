@@ -5,6 +5,9 @@ using System.Text.RegularExpressions;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// HTML sanitization and validation helpers.
+    /// </summary>
     public partial class CLU_Web
     {
         // Default allowed tags and attributes

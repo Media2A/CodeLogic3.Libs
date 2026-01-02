@@ -3,6 +3,9 @@ using System.Resources;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Assembly resource helper utilities.
+    /// </summary>
     public partial class CLU_Assemblies
     {
         /// <summary>

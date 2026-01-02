@@ -8,6 +8,9 @@ namespace CL.Core;
 /// </summary>
 public class CoreLibrary : ILibrary
 {
+    /// <summary>
+    /// Library manifest metadata for CL.Core.
+    /// </summary>
     public LibraryManifest Manifest { get; } = new LibraryManifest
     {
         Id = "cl.core",

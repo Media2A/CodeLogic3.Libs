@@ -5,6 +5,9 @@ using System.Text;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Networking utilities for route tracing.
+    /// </summary>
     public partial class CLU_Networking
     {
         /// <summary>

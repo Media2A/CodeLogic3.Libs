@@ -547,6 +547,9 @@ public class GitRepository : IDisposable
 
     #region Dispose
 
+    /// <summary>
+    /// Disposes the repository and internal resources.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed)

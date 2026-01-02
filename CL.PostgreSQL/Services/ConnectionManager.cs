@@ -19,6 +19,10 @@ public class ConnectionManager : IDisposable
     private readonly ILogger? _logger;
     private bool _disposed = false;
 
+    /// <summary>
+    /// Creates a connection manager with optional logging.
+    /// </summary>
+    /// <param name="logger">Logger for connection lifecycle events.</param>
     public ConnectionManager(ILogger? logger = null)
     {
         _logger = logger;

@@ -25,6 +25,11 @@ public class QueryBuilder<T> where T : class, new()
     private readonly ConnectionManager _connectionManager;
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// Creates a query builder for the specified model type.
+    /// </summary>
+    /// <param name="connectionManager">Connection manager for database access.</param>
+    /// <param name="logger">Optional logger for query diagnostics.</param>
     public QueryBuilder(ConnectionManager connectionManager, ILogger? logger = null)
     {
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));

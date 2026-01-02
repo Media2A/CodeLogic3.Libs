@@ -2,6 +2,9 @@
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// HTTP context access helpers for web utilities.
+    /// </summary>
     public partial class CLU_Web
     {
         private static IHttpContextAccessor _httpContextAccessor;

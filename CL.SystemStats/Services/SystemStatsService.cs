@@ -315,7 +315,14 @@ public class SystemStatsService : IAsyncDisposable
     /// </summary>
     private class CacheEntry
     {
+        /// <summary>
+        /// Cached value wrapper.
+        /// </summary>
         public required object Value { get; set; }
+
+        /// <summary>
+        /// Timestamp when the value was cached.
+        /// </summary>
         public required DateTime CreatedAt { get; set; }
     }
 }

@@ -2,6 +2,9 @@
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Networking utilities for DNS lookup and diagnostics.
+    /// </summary>
     public partial class CLU_Networking
     {
         /// <summary>

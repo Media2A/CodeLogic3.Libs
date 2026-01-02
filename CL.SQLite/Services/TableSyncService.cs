@@ -17,6 +17,12 @@ public class TableSyncService
     private readonly MigrationTracker _migrationTracker;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// Creates a table synchronization service.
+    /// </summary>
+    /// <param name="connectionManager">Connection manager for database access.</param>
+    /// <param name="dataDirectory">Optional data directory for migrations.</param>
+    /// <param name="logger">Optional logger for sync diagnostics.</param>
     public TableSyncService(
         ConnectionManager connectionManager,
         string? dataDirectory = null,
@@ -434,12 +440,43 @@ public class TableSyncService
 /// </summary>
 public class SyncStatus
 {
+    /// <summary>
+    /// Indicates whether the table schema matches the model.
+    /// </summary>
     public bool IsInSync { get; set; }
+
+    /// <summary>
+    /// Indicates whether the table exists in the database.
+    /// </summary>
     public bool TableExists { get; set; }
+
+    /// <summary>
+    /// Total column count in the database table.
+    /// </summary>
     public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Count of missing columns compared to the model.
+    /// </summary>
     public int MissingColumnsCount { get; set; }
+
+    /// <summary>
+    /// Count of extra columns not present in the model.
+    /// </summary>
     public int ExtraColumnsCount { get; set; }
+
+    /// <summary>
+    /// Count of columns with modified definitions.
+    /// </summary>
     public int ModifiedColumnsCount { get; set; }
+
+    /// <summary>
+    /// Informational message about the sync operation.
+    /// </summary>
     public string? Message { get; set; }
+
+    /// <summary>
+    /// Error message when the sync fails.
+    /// </summary>
     public string? ErrorMessage { get; set; }
 }

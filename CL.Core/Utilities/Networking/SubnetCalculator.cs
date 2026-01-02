@@ -3,6 +3,9 @@ using System.Net;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Networking utilities for subnet calculations.
+    /// </summary>
     public partial class CLU_Networking
     {
         /// <summary>

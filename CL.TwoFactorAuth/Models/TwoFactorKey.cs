@@ -83,9 +83,17 @@ public record TotpValidationResult
     /// </summary>
     public string? ErrorMessage { get; init; }
 
+    /// <summary>
+    /// Creates a valid result with an optional matched window.
+    /// </summary>
+    /// <param name="window">Matched window index, if applicable.</param>
     public static TotpValidationResult Valid(int? window = null) =>
         new() { IsValid = true, MatchedWindow = window };
 
+    /// <summary>
+    /// Creates an invalid result with an error message.
+    /// </summary>
+    /// <param name="errorMessage">Reason for validation failure.</param>
     public static TotpValidationResult Invalid(string errorMessage = "Invalid code") =>
         new() { IsValid = false, ErrorMessage = errorMessage };
 }

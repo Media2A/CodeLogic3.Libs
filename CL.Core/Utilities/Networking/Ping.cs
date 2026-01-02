@@ -4,6 +4,9 @@ using System.Net.NetworkInformation;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Networking utilities for ping and diagnostics.
+    /// </summary>
     public partial class CLU_Networking
     {
         /// <summary>

@@ -3,6 +3,9 @@ using System.Net;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Simple REST-style API helper methods.
+    /// </summary>
     public partial class CLU_Web
     {
         /// <summary>

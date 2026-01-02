@@ -4,6 +4,9 @@ using System.Reflection;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Assembly invocation utilities.
+    /// </summary>
     public partial class CLU_Assemblies
     {
         /// <summary>

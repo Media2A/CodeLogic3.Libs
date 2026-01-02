@@ -20,6 +20,12 @@ public class TableSyncService
     private readonly BackupManager _backupManager;
     private readonly MigrationTracker _migrationTracker;
 
+    /// <summary>
+    /// Creates a table synchronization service.
+    /// </summary>
+    /// <param name="connectionManager">Connection manager for database access.</param>
+    /// <param name="dataDirectory">Directory for backups and migration logs.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
     public TableSyncService(ConnectionManager connectionManager, string dataDirectory, ILogger? logger)
     {
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
@@ -306,11 +312,19 @@ public class SchemaAnalyzer
 {
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// Creates a schema analyzer with optional logging.
+    /// </summary>
+    /// <param name="logger">Logger for analysis diagnostics.</param>
     public SchemaAnalyzer(ILogger? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// Generates a CREATE TABLE statement for a model type.
+    /// </summary>
+    /// <param name="schemaName">Database schema name.</param>
     public string GenerateCreateTableSql<T>(string schemaName) where T : class
     {
         var type = typeof(T);
@@ -337,6 +351,11 @@ public class SchemaAnalyzer
         return $"CREATE TABLE IF NOT EXISTS \"{schemaName}\".\"{tableName}\" (\n    {columnsSql}\n)";
     }
 
+    /// <summary>
+    /// Generates a column definition for a property and its column attribute.
+    /// </summary>
+    /// <param name="property">Model property to convert.</param>
+    /// <param name="attr">Column attribute metadata.</param>
     public string GenerateColumnDefinition(PropertyInfo property, ColumnAttribute? attr)
     {
         var columnName = attr?.Name ?? property.Name;
@@ -402,6 +421,11 @@ public class BackupManager
     private readonly string _backupDirectory;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// Creates a backup manager rooted at the data directory.
+    /// </summary>
+    /// <param name="dataDirectory">Directory used for backup storage.</param>
+    /// <param name="logger">Optional logger for backup operations.</param>
     public BackupManager(string dataDirectory, ILogger? logger)
     {
         _backupDirectory = Path.Combine(dataDirectory, "backups");
@@ -409,6 +433,12 @@ public class BackupManager
         Directory.CreateDirectory(_backupDirectory);
     }
 
+    /// <summary>
+    /// Creates a backup copy of a table within the same schema.
+    /// </summary>
+    /// <param name="connection">Open PostgreSQL connection.</param>
+    /// <param name="schemaName">Schema containing the table.</param>
+    /// <param name="tableName">Table name to back up.</param>
     public async Task CreateTableBackupAsync(NpgsqlConnection connection, string schemaName, string tableName)
     {
         try
@@ -436,12 +466,22 @@ public class MigrationTracker
     private readonly string _migrationFile;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// Creates a migration tracker that writes to a log file.
+    /// </summary>
+    /// <param name="dataDirectory">Directory for migration logs.</param>
+    /// <param name="logger">Optional logger for migration operations.</param>
     public MigrationTracker(string dataDirectory, ILogger? logger)
     {
         _migrationFile = Path.Combine(dataDirectory, "migrations.log");
         _logger = logger;
     }
 
+    /// <summary>
+    /// Records a migration operation for a table.
+    /// </summary>
+    /// <param name="tableName">Table name the migration applies to.</param>
+    /// <param name="operation">Migration operation description.</param>
     public async Task RecordMigrationAsync(string tableName, string operation)
     {
         try

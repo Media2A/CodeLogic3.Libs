@@ -18,6 +18,11 @@ public class Repository<T> where T : class, new()
     private readonly string _tableName;
     private readonly PropertyInfo[] _properties;
 
+    /// <summary>
+    /// Creates a repository for the specified model type.
+    /// </summary>
+    /// <param name="connectionManager">Connection manager for database access.</param>
+    /// <param name="logger">Optional logger for repository operations.</param>
     public Repository(ConnectionManager connectionManager, ILogger? logger = null)
     {
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));

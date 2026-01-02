@@ -20,8 +20,16 @@ public record Result
     /// </summary>
     public Exception? Exception { get; init; }
 
+    /// <summary>
+    /// Creates a successful result.
+    /// </summary>
     public static Result Success() => new() { IsSuccess = true };
 
+    /// <summary>
+    /// Creates a failed result with an error message and optional exception.
+    /// </summary>
+    /// <param name="errorMessage">Error message describing the failure.</param>
+    /// <param name="exception">Optional exception associated with the failure.</param>
     public static Result Failure(string errorMessage, Exception? exception = null) =>
         new() { IsSuccess = false, ErrorMessage = errorMessage, Exception = exception };
 }
@@ -51,9 +59,18 @@ public record Result<T>
     /// </summary>
     public Exception? Exception { get; init; }
 
+    /// <summary>
+    /// Creates a successful result containing a value.
+    /// </summary>
+    /// <param name="value">Value returned from the operation.</param>
     public static Result<T> Success(T value) =>
         new() { IsSuccess = true, Value = value };
 
+    /// <summary>
+    /// Creates a failed result with an error message and optional exception.
+    /// </summary>
+    /// <param name="errorMessage">Error message describing the failure.</param>
+    /// <param name="exception">Optional exception associated with the failure.</param>
     public static Result<T> Failure(string errorMessage, Exception? exception = null) =>
         new() { IsSuccess = false, ErrorMessage = errorMessage, Exception = exception };
 }

@@ -11,6 +11,9 @@ namespace CL.GitHelper;
 /// </summary>
 public class GitHelperLibrary : ILibrary
 {
+    /// <summary>
+    /// Library manifest metadata for Git helper.
+    /// </summary>
     public LibraryManifest Manifest { get; } = new LibraryManifest
     {
         Id = "githelper",

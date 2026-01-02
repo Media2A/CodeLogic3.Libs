@@ -494,12 +494,39 @@ public class TableSyncService
 
     private class ForeignKeyInfo
     {
+        /// <summary>
+        /// Foreign key constraint name.
+        /// </summary>
         public string ConstraintName { get; set; }
+
+        /// <summary>
+        /// Table that owns the foreign key.
+        /// </summary>
         public string TableName { get; set; }
+
+        /// <summary>
+        /// Column participating in the foreign key.
+        /// </summary>
         public string ColumnName { get; set; }
+
+        /// <summary>
+        /// Referenced table name.
+        /// </summary>
         public string ReferencedTableName { get; set; }
+
+        /// <summary>
+        /// Referenced column name.
+        /// </summary>
         public string ReferencedColumnName { get; set; }
+
+        /// <summary>
+        /// Update rule for the constraint.
+        /// </summary>
         public string OnUpdate { get; set; }
+
+        /// <summary>
+        /// Delete rule for the constraint.
+        /// </summary>
         public string OnDelete { get; set; }
     }
 

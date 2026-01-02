@@ -121,8 +121,14 @@ namespace CL.Core.Utilities
 
         // Clean up later...
 
+        /// <summary>
+        /// Maps content type enums to MIME strings.
+        /// </summary>
         public class ContentType
         {
+            /// <summary>
+            /// Supported response content types.
+            /// </summary>
             public enum ContentTypeEnum
             {
                 Html,
@@ -227,6 +233,11 @@ namespace CL.Core.Utilities
             }
         }
 
+        /// <summary>
+        /// Serializes an object to JSON and writes it to the response body.
+        /// </summary>
+        /// <param name="data">Data object to serialize.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
         public static async Task WriteJsonSerializeAsync(object data)
         {
             var jsonResult = JsonConvert.SerializeObject(data);

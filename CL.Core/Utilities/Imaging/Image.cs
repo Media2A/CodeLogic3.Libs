@@ -4,8 +4,14 @@ using ImageMagick;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Imaging utilities for validation, conversion, and resizing.
+    /// </summary>
     public partial class CLU_Imaging
     {
+        /// <summary>
+        /// Supported output image formats.
+        /// </summary>
         public enum ImageFormat
         {
             Jpeg,

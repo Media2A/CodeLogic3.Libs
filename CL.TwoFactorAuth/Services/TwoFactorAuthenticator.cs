@@ -14,6 +14,11 @@ public class TwoFactorAuthenticator
     private readonly TwoFactorAuthConfiguration _config;
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// Creates an authenticator with configuration and logging.
+    /// </summary>
+    /// <param name="config">Two-factor configuration settings.</param>
+    /// <param name="logger">Logger for status and error messages.</param>
     public TwoFactorAuthenticator(TwoFactorAuthConfiguration config, ILogger logger)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));

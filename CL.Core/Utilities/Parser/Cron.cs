@@ -3,6 +3,9 @@ using System.Linq;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Parsing utilities for common text formats such as cron expressions.
+    /// </summary>
     public partial class CLU_Parser
     {
         /// <summary>

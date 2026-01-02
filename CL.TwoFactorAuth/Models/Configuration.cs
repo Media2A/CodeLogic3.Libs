@@ -34,6 +34,9 @@ public class TwoFactorAuthConfiguration : ConfigModelBase
     /// </summary>
     public QrErrorCorrectionLevel ErrorCorrectionLevel { get; set; } = QrErrorCorrectionLevel.Q;
 
+    /// <summary>
+    /// Validates configuration values and returns errors when invalid.
+    /// </summary>
     public override ConfigValidationResult Validate()
     {
         var errors = new List<string>();
@@ -99,9 +102,18 @@ public record TwoFactorResult
     /// </summary>
     public object? Data { get; init; }
 
+    /// <summary>
+    /// Creates a successful 2FA result.
+    /// </summary>
+    /// <param name="message">Optional result message.</param>
+    /// <param name="data">Optional additional data.</param>
     public static TwoFactorResult Succeeded(string? message = null, object? data = null) =>
         new() { Success = true, Message = message, Data = data };
 
+    /// <summary>
+    /// Creates a failed 2FA result with an error message.
+    /// </summary>
+    /// <param name="message">Error message.</param>
     public static TwoFactorResult Failed(string message) =>
         new() { Success = false, Message = message };
 }

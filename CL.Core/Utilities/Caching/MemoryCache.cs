@@ -13,6 +13,10 @@ public class MemoryCache : ICache
     private long _hits;
     private long _misses;
 
+    /// <summary>
+    /// Creates an in-memory cache with optional configuration.
+    /// </summary>
+    /// <param name="options">Cache options or null to use defaults.</param>
     public MemoryCache(CacheOptions? options = null)
     {
         _options = options ?? new CacheOptions();
@@ -24,6 +28,13 @@ public class MemoryCache : ICache
         }
     }
 
+    /// <summary>
+    /// Stores a value in the cache with optional expiration.
+    /// </summary>
+    /// <param name="key">Cache key.</param>
+    /// <param name="value">Value to store.</param>
+    /// <param name="expiration">Optional expiration interval.</param>
+    /// <returns>True when the value is stored successfully.</returns>
     public Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
         try
@@ -57,6 +68,11 @@ public class MemoryCache : ICache
         }
     }
 
+    /// <summary>
+    /// Gets a cached value by key.
+    /// </summary>
+    /// <param name="key">Cache key.</param>
+    /// <returns>Cached value or default when missing or expired.</returns>
     public Task<T?> GetAsync<T>(string key)
     {
         if (_cache.TryGetValue(key, out var entry))
@@ -81,6 +97,11 @@ public class MemoryCache : ICache
         return Task.FromResult<T?>(default);
     }
 
+    /// <summary>
+    /// Checks whether a cache entry exists and is not expired.
+    /// </summary>
+    /// <param name="key">Cache key.</param>
+    /// <returns>True if the entry exists and is valid.</returns>
     public Task<bool> ExistsAsync(string key)
     {
         if (_cache.TryGetValue(key, out var entry))
@@ -98,12 +119,20 @@ public class MemoryCache : ICache
         return Task.FromResult(false);
     }
 
+    /// <summary>
+    /// Removes a cache entry by key.
+    /// </summary>
+    /// <param name="key">Cache key.</param>
+    /// <returns>True if the entry was removed.</returns>
     public Task<bool> RemoveAsync(string key)
     {
         var removed = _cache.TryRemove(key, out _);
         return Task.FromResult(removed);
     }
 
+    /// <summary>
+    /// Clears all cache entries and resets statistics.
+    /// </summary>
     public Task ClearAsync()
     {
         _cache.Clear();
@@ -112,6 +141,13 @@ public class MemoryCache : ICache
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Gets a cached value or creates and stores one when missing.
+    /// </summary>
+    /// <param name="key">Cache key.</param>
+    /// <param name="factory">Factory used to create the value when missing.</param>
+    /// <param name="expiration">Optional expiration interval.</param>
+    /// <returns>Cached or newly created value.</returns>
     public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null)
     {
         var existing = await GetAsync<T>(key);
@@ -127,6 +163,10 @@ public class MemoryCache : ICache
         return value;
     }
 
+    /// <summary>
+    /// Gets cache statistics including counts and hit/miss totals.
+    /// </summary>
+    /// <returns>Snapshot of cache statistics.</returns>
     public CacheStatistics GetStatistics()
     {
         // Clean up expired entries before getting count
@@ -184,8 +224,19 @@ public class MemoryCache : ICache
 
     private class CacheEntry
     {
+        /// <summary>
+        /// Cached value.
+        /// </summary>
         public required object? Value { get; init; }
+
+        /// <summary>
+        /// Optional expiration timestamp.
+        /// </summary>
         public DateTime? ExpiresAt { get; init; }
+
+        /// <summary>
+        /// Timestamp when the entry was created.
+        /// </summary>
         public DateTime CreatedAt { get; init; }
     }
 }

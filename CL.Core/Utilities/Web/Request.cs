@@ -6,9 +6,18 @@ using System.Threading.Tasks;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// HTTP request helper utilities.
+    /// </summary>
     public partial class CLU_Web
     {
         // Form data
+        /// <summary>
+        /// Reads form fields and files from the current request.
+        /// </summary>
+        /// <returns>
+        /// Dictionary of form field values and file objects, or null when the request is not form-data.
+        /// </returns>
         public static async Task<Dictionary<string, object>> GetFormDataAsync()
         {
             var context = CLU_Web.HC(); // Assuming this retrieves the current HttpContext

@@ -5,6 +5,11 @@ namespace CL.SQLite.Services;
 
 internal static class WhereClauseBuilder
 {
+    /// <summary>
+    /// Builds a SQL WHERE clause and parameter map from condition descriptors.
+    /// </summary>
+    /// <param name="conditions">Conditions to convert into SQL.</param>
+    /// <returns>SQL clause and parameter values.</returns>
     public static (string Clause, Dictionary<string, object?> Parameters) Build(IReadOnlyList<WhereCondition> conditions)
     {
         var sb = new StringBuilder();

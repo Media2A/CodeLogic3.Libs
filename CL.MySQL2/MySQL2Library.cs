@@ -7,11 +7,6 @@ using CL.Core.Utilities.Caching;
 
 namespace CL.MySQL2;
 
-/// <summary>
-/// MySQL2 library for CodeLogic 3.0 framework.
-/// Provides MySQL database connectivity, repository pattern, query building,
-/// table synchronization, migrations, and backup capabilities.
-/// </summary>
 [LibraryManifest(
     Id = "mysql2",
     Name = "MySQL2 Database Library",
@@ -21,6 +16,11 @@ namespace CL.MySQL2;
     Tags = new[] { "database", "mysql", "orm", "sql" }
 )]
 [LibraryDependency(Id = "cl.core", MinVersion = "3.0.0")]
+/// <summary>
+/// MySQL2 library for CodeLogic 3.0 framework.
+/// Provides MySQL database connectivity, repository pattern, query building,
+/// table synchronization, migrations, and backup capabilities.
+/// </summary>
 public class MySQL2Library : ILibrary
 {
     private DatabaseConfiguration? _config;
@@ -34,6 +34,9 @@ public class MySQL2Library : ILibrary
     private ICache? _cache;
     private bool _disposed = false;
 
+    /// <summary>
+    /// Gets the library manifest derived from attributes.
+    /// </summary>
     public LibraryManifest Manifest => this.GetType()
         .GetCustomAttributes(typeof(LibraryManifestAttribute), false)
         .Cast<LibraryManifestAttribute>()

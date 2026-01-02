@@ -15,11 +15,22 @@ public record ValidationResult
     /// </summary>
     public IReadOnlyList<ValidationError> Errors { get; init; } = Array.Empty<ValidationError>();
 
+    /// <summary>
+    /// Creates a valid result with no errors.
+    /// </summary>
     public static ValidationResult Valid() => new() { IsValid = true };
 
+    /// <summary>
+    /// Creates an invalid result from a list of errors.
+    /// </summary>
+    /// <param name="errors">Validation errors.</param>
     public static ValidationResult Invalid(params ValidationError[] errors) =>
         new() { IsValid = false, Errors = errors };
 
+    /// <summary>
+    /// Creates an invalid result from a sequence of errors.
+    /// </summary>
+    /// <param name="errors">Validation errors.</param>
     public static ValidationResult Invalid(IEnumerable<ValidationError> errors) =>
         new() { IsValid = false, Errors = errors.ToList() };
 }

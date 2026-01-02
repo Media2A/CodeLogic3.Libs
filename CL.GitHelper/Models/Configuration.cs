@@ -187,6 +187,9 @@ public class GitHelperConfiguration : ConfigModelBase
         };
     }
 
+    /// <summary>
+    /// Validates configuration values and returns errors when invalid.
+    /// </summary>
     public override ConfigValidationResult Validate()
     {
         var errors = new List<string>();

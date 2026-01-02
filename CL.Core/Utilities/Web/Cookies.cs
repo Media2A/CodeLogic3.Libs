@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Http;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// Cookie helper utilities.
+    /// </summary>
     public partial class CLU_Web
     {
         /// <summary>

@@ -10,6 +10,9 @@ namespace CL.TwoFactorAuth;
 /// </summary>
 public class TwoFactorAuthLibrary : ILibrary
 {
+    /// <summary>
+    /// Library manifest metadata for the 2FA library.
+    /// </summary>
     public LibraryManifest Manifest { get; } = new LibraryManifest
     {
         Id = "twofactorauth",
@@ -25,6 +28,9 @@ public class TwoFactorAuthLibrary : ILibrary
     private QrCodeGenerator? _qrGenerator;
     private TwoFactorAuthConfiguration? _config;
 
+    /// <summary>
+    /// Phase 1: configure the library and register configuration models.
+    /// </summary>
     public async Task OnConfigureAsync(LibraryContext context)
     {
         _context = context;
@@ -37,6 +43,9 @@ public class TwoFactorAuthLibrary : ILibrary
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Phase 2: initialize services based on configuration.
+    /// </summary>
     public async Task OnInitializeAsync(LibraryContext context)
     {
         _context = context;
@@ -52,6 +61,9 @@ public class TwoFactorAuthLibrary : ILibrary
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Phase 3: start services after initialization.
+    /// </summary>
     public async Task OnStartAsync(LibraryContext context)
     {
         _context = context;
@@ -60,6 +72,9 @@ public class TwoFactorAuthLibrary : ILibrary
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Phase 4: stop services and release runtime resources.
+    /// </summary>
     public async Task OnStopAsync()
     {
         _context?.Logger.Info($"Stopping {Manifest.Name}");
@@ -69,6 +84,9 @@ public class TwoFactorAuthLibrary : ILibrary
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs a health check of the 2FA services.
+    /// </summary>
     public async Task<HealthStatus> HealthCheckAsync()
     {
         if (_authenticator == null || _qrGenerator == null)
@@ -89,15 +107,24 @@ public class TwoFactorAuthLibrary : ILibrary
         }
     }
 
+    /// <summary>
+    /// Disposes service instances.
+    /// </summary>
     public void Dispose()
     {
         _authenticator = null;
         _qrGenerator = null;
     }
 
+    /// <summary>
+    /// Gets the configured authenticator instance.
+    /// </summary>
     public TwoFactorAuthenticator GetAuthenticator() =>
         _authenticator ?? throw new InvalidOperationException("Library not initialized");
 
+    /// <summary>
+    /// Gets the configured QR code generator instance.
+    /// </summary>
     public QrCodeGenerator GetQrCodeGenerator() =>
         _qrGenerator ?? throw new InvalidOperationException("Library not initialized");
 }

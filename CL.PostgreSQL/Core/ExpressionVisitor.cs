@@ -92,6 +92,9 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
         return columns;
     }
 
+    /// <summary>
+    /// Visits an expression node and appends SQL fragments as needed.
+    /// </summary>
     public override Expression Visit(Expression? node)
     {
         if (node == null)

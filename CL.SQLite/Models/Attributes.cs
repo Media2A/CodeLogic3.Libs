@@ -27,10 +27,25 @@ public class SQLiteTableAttribute : Attribute
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class SQLiteIndexAttribute : Attribute
 {
+    /// <summary>
+    /// Column names included in the index (order matters).
+    /// </summary>
     public string[] Columns { get; }
+
+    /// <summary>
+    /// Indicates whether the index enforces uniqueness.
+    /// </summary>
     public bool IsUnique { get; set; }
+
+    /// <summary>
+    /// Optional index name override.
+    /// </summary>
     public string? Name { get; set; }
 
+    /// <summary>
+    /// Creates an index attribute for the specified columns.
+    /// </summary>
+    /// <param name="columns">Columns included in the index.</param>
     public SQLiteIndexAttribute(params string[] columns)
     {
         Columns = columns;

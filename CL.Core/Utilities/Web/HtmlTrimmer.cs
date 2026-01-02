@@ -5,6 +5,9 @@ using System.Text.RegularExpressions;
 
 namespace CL.Core.Utilities
 {
+    /// <summary>
+    /// HTML trimming and minification utilities.
+    /// </summary>
     public partial class CLU_Web
     {
         // HTML void elements (no closing tag)

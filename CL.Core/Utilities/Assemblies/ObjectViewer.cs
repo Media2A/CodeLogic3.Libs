@@ -10,6 +10,10 @@ namespace CL.Core.Utilities
     /// </summary>
     public partial class CLU_Assemblies
     {
+        /// <summary>
+        /// Writes an object's public properties and fields to the console.
+        /// </summary>
+        /// <param name="obj">Object to inspect.</param>
         public static void ViewObject(object obj)
         {
             if (obj == null)

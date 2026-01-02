@@ -14,6 +14,11 @@ public class MigrationTracker
     private const string MigrationsFolderName = "migrations";
     private const string MigrationsHistoryFile = "migration_history.json";
 
+    /// <summary>
+    /// Creates a migration tracker rooted at the provided data directory.
+    /// </summary>
+    /// <param name="dataDirectory">Directory used for migration history files.</param>
+    /// <param name="logger">Optional logger for migration operations.</param>
     public MigrationTracker(string dataDirectory, ILogger? logger = null)
     {
         _logger = logger;
@@ -26,13 +31,44 @@ public class MigrationTracker
     /// </summary>
     public class MigrationRecord
     {
+        /// <summary>
+        /// Unique migration identifier.
+        /// </summary>
         public string Id { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Table name targeted by the migration.
+        /// </summary>
         public string TableName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Migration type (e.g., CREATE, ALTER, DROP).
+        /// </summary>
         public string MigrationType { get; set; } = string.Empty; // "CREATE", "ALTER", "DROP", etc.
+
+        /// <summary>
+        /// Timestamp when the migration was applied.
+        /// </summary>
         public DateTime AppliedAt { get; set; }
+
+        /// <summary>
+        /// Optional migration description.
+        /// </summary>
         public string? Description { get; set; }
+
+        /// <summary>
+        /// Indicates whether the migration succeeded.
+        /// </summary>
         public bool Success { get; set; }
+
+        /// <summary>
+        /// Error message for failed migrations.
+        /// </summary>
         public string? ErrorMessage { get; set; }
+
+        /// <summary>
+        /// SQL applied for the migration.
+        /// </summary>
         public string? MigrationSql { get; set; }
     }
 
@@ -341,15 +377,49 @@ public class MigrationTracker
 /// </summary>
 public class MigrationStatistics
 {
+    /// <summary>
+    /// Total number of migrations recorded.
+    /// </summary>
     public int TotalMigrations { get; set; }
+
+    /// <summary>
+    /// Count of successful migrations.
+    /// </summary>
     public int SuccessfulMigrations { get; set; }
+
+    /// <summary>
+    /// Count of failed migrations.
+    /// </summary>
     public int FailedMigrations { get; set; }
+
+    /// <summary>
+    /// Number of unique tables affected.
+    /// </summary>
     public int UniqueTables { get; set; }
+
+    /// <summary>
+    /// Timestamp of the first migration.
+    /// </summary>
     public DateTime? FirstMigration { get; set; }
+
+    /// <summary>
+    /// Timestamp of the last migration.
+    /// </summary>
     public DateTime? LastMigration { get; set; }
+
+    /// <summary>
+    /// Counts of migrations grouped by type.
+    /// </summary>
     public Dictionary<string, int> MigrationsByType { get; set; } = new();
+
+    /// <summary>
+    /// Count of migrations in the last 24 hours.
+    /// </summary>
     public int RecentMigrations { get; set; }
 
+    /// <summary>
+    /// Returns a formatted summary of migration statistics.
+    /// </summary>
     public override string ToString()
     {
         var sb = new System.Text.StringBuilder();

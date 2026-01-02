@@ -21,6 +21,12 @@ public class ConnectionManager : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
 
+    /// <summary>
+    /// Creates a SQLite connection manager with pooling.
+    /// </summary>
+    /// <param name="config">SQLite configuration settings.</param>
+    /// <param name="logger">Logger for connection events.</param>
+    /// <param name="dataDirectory">Optional base directory for relative database paths.</param>
     public ConnectionManager(SQLiteConfiguration config, ILogger logger, string? dataDirectory = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -245,6 +251,9 @@ public class ConnectionManager : IDisposable
             throw new ObjectDisposedException(nameof(ConnectionManager));
     }
 
+    /// <summary>
+    /// Disposes the connection manager and all pooled connections.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed)
@@ -277,11 +286,30 @@ public class ConnectionManager : IDisposable
     /// </summary>
     private class PooledConnection : IDisposable
     {
+        /// <summary>
+        /// Underlying SQLite connection.
+        /// </summary>
         public SqliteConnection Connection { get; }
+
+        /// <summary>
+        /// Semaphore used to guard concurrent access to the connection.
+        /// </summary>
         public SemaphoreSlim Lock { get; } = new(1, 1);
+
+        /// <summary>
+        /// Timestamp when the connection was last used.
+        /// </summary>
         public DateTime LastUsed { get; private set; }
+
+        /// <summary>
+        /// Indicates whether the connection is currently in use.
+        /// </summary>
         public bool InUse { get; private set; }
 
+        /// <summary>
+        /// Creates a pooled connection wrapper.
+        /// </summary>
+        /// <param name="connection">Open SQLite connection.</param>
         public PooledConnection(SqliteConnection connection)
         {
             Connection = connection ?? throw new ArgumentNullException(nameof(connection));
@@ -289,18 +317,27 @@ public class ConnectionManager : IDisposable
             InUse = false;
         }
 
+        /// <summary>
+        /// Marks the connection as in use and updates last-used timestamp.
+        /// </summary>
         public void MarkInUse()
         {
             InUse = true;
             LastUsed = DateTime.UtcNow;
         }
 
+        /// <summary>
+        /// Marks the connection as available and updates last-used timestamp.
+        /// </summary>
         public void MarkAvailable()
         {
             InUse = false;
             LastUsed = DateTime.UtcNow;
         }
 
+        /// <summary>
+        /// Determines whether the connection is healthy and reusable.
+        /// </summary>
         public bool IsValid()
         {
             return !InUse &&
@@ -308,11 +345,17 @@ public class ConnectionManager : IDisposable
                    !IsIdleTooLong(TimeSpan.FromMinutes(10));
         }
 
+        /// <summary>
+        /// Determines whether the connection has been idle beyond the timeout.
+        /// </summary>
         public bool IsIdleTooLong(TimeSpan timeout)
         {
             return DateTime.UtcNow - LastUsed > timeout;
         }
 
+        /// <summary>
+        /// Disposes the pooled connection and its lock.
+        /// </summary>
         public void Dispose()
         {
             try

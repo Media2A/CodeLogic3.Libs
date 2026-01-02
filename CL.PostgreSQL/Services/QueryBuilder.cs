@@ -29,6 +29,12 @@ public class QueryBuilder<T> where T : class, new()
     private readonly ConnectionManager _connectionManager;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// Creates a query builder for the specified model type.
+    /// </summary>
+    /// <param name="connectionManager">Connection manager used to open database connections.</param>
+    /// <param name="logger">Optional logger for query diagnostics.</param>
+    /// <param name="connectionId">Connection identifier to use for queries.</param>
     public QueryBuilder(ConnectionManager connectionManager, ILogger? logger = null, string connectionId = "Default")
     {
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
@@ -623,7 +629,14 @@ public class QueryBuilder<T> where T : class, new()
 /// </summary>
 public class OrderByClause
 {
+    /// <summary>
+    /// Column name used for ordering.
+    /// </summary>
     public required string Column { get; set; }
+
+    /// <summary>
+    /// Sort direction.
+    /// </summary>
     public SortOrder Order { get; set; } = SortOrder.Asc;
 }
 
@@ -632,8 +645,19 @@ public class OrderByClause
 /// </summary>
 public class JoinClause
 {
+    /// <summary>
+    /// Join type (inner/left/right/full).
+    /// </summary>
     public JoinType Type { get; set; } = JoinType.Inner;
+
+    /// <summary>
+    /// Table name to join.
+    /// </summary>
     public required string Table { get; set; }
+
+    /// <summary>
+    /// Join condition expression.
+    /// </summary>
     public required string Condition { get; set; }
 }
 
@@ -642,8 +666,19 @@ public class JoinClause
 /// </summary>
 public class AggregateFunction
 {
+    /// <summary>
+    /// Aggregate function type.
+    /// </summary>
     public AggregateType Type { get; set; }
+
+    /// <summary>
+    /// Column name to aggregate.
+    /// </summary>
     public required string Column { get; set; }
+
+    /// <summary>
+    /// Alias for the aggregate result.
+    /// </summary>
     public required string Alias { get; set; }
 }
 
@@ -678,6 +713,11 @@ public class QueryBuilder
     private readonly ConnectionManager _connectionManager;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// Creates a non-generic query builder factory.
+    /// </summary>
+    /// <param name="connectionManager">Connection manager used to open database connections.</param>
+    /// <param name="logger">Optional logger for query diagnostics.</param>
     public QueryBuilder(ConnectionManager connectionManager, ILogger? logger = null)
     {
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));

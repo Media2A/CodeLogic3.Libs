@@ -15,6 +15,9 @@ public class SQLiteLibrary : ILibrary
     private LibraryContext? _context;
     private SQLiteConfiguration? _config;
 
+    /// <summary>
+    /// Library manifest metadata for CL.SQLite.
+    /// </summary>
     public LibraryManifest Manifest { get; } = new LibraryManifest
     {
         Id = "cl.sqlite",

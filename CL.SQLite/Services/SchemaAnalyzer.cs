@@ -14,6 +14,10 @@ public class SchemaAnalyzer
 {
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// Creates a schema analyzer with optional logging.
+    /// </summary>
+    /// <param name="logger">Logger for diagnostics.</param>
     public SchemaAnalyzer(ILogger? logger = null)
     {
         _logger = logger;
@@ -24,16 +28,59 @@ public class SchemaAnalyzer
     /// </summary>
     public class ModelColumnDefinition
     {
+        /// <summary>
+        /// CLR property name backing the column.
+        /// </summary>
         public string PropertyName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Column name in the database.
+        /// </summary>
         public string ColumnName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// SQLite data type for the column.
+        /// </summary>
         public SQLiteDataType DataType { get; set; }
+
+        /// <summary>
+        /// Indicates whether the column is a primary key.
+        /// </summary>
         public bool Primary { get; set; }
+
+        /// <summary>
+        /// Indicates whether the column auto-increments.
+        /// </summary>
         public bool AutoIncrement { get; set; }
+
+        /// <summary>
+        /// Indicates whether the column disallows null values.
+        /// </summary>
         public bool NotNull { get; set; }
+
+        /// <summary>
+        /// Indicates whether the column has a unique constraint.
+        /// </summary>
         public bool Unique { get; set; }
+
+        /// <summary>
+        /// Indicates whether the column is indexed.
+        /// </summary>
         public bool IsIndexed { get; set; }
+
+        /// <summary>
+        /// Default value expression for the column.
+        /// </summary>
         public string? DefaultValue { get; set; }
+
+        /// <summary>
+        /// Optional foreign key metadata.
+        /// </summary>
         public SQLiteForeignKeyAttribute? ForeignKey { get; set; }
+
+        /// <summary>
+        /// Optional column comment.
+        /// </summary>
         public string? Comment { get; set; }
     }
 
@@ -42,11 +89,34 @@ public class SchemaAnalyzer
     /// </summary>
     public class DatabaseColumnDefinition
     {
+        /// <summary>
+        /// Column identifier (ordinal).
+        /// </summary>
         public int Cid { get; set; }
+
+        /// <summary>
+        /// Column name in the database.
+        /// </summary>
         public string ColumnName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Database-reported data type.
+        /// </summary>
         public string DataType { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Indicates whether the column disallows null values.
+        /// </summary>
         public bool NotNull { get; set; }
+
+        /// <summary>
+        /// Default value expression in the database.
+        /// </summary>
         public string? DefaultValue { get; set; }
+
+        /// <summary>
+        /// Indicates whether the column is part of the primary key.
+        /// </summary>
         public bool PrimaryKey { get; set; }
     }
 
@@ -411,10 +481,24 @@ public class SchemaAnalyzer
     /// </summary>
     public class SchemaDifferences
     {
+        /// <summary>
+        /// Columns present in the model but missing in the database.
+        /// </summary>
         public List<ModelColumnDefinition> MissingColumns { get; } = new();
+
+        /// <summary>
+        /// Columns present in the database but missing in the model.
+        /// </summary>
         public List<DatabaseColumnDefinition> ExtraColumns { get; } = new();
+
+        /// <summary>
+        /// Columns that exist in both but differ in definition.
+        /// </summary>
         public List<(ModelColumnDefinition Model, DatabaseColumnDefinition Database)> ModifiedColumns { get; } = new();
 
+        /// <summary>
+        /// Indicates whether any differences were found.
+        /// </summary>
         public bool HasDifferences =>
             MissingColumns.Any() ||
             ExtraColumns.Any() ||

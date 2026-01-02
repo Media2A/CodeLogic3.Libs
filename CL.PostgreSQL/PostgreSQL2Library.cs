@@ -17,6 +17,9 @@ public class PostgreSQL2Library : ILibrary
     private TableSyncService? _tableSyncService;
     private readonly Dictionary<string, DatabaseConfiguration> _databaseConfigs = new();
 
+    /// <summary>
+    /// Library manifest metadata for CL.PostgreSQL.
+    /// </summary>
     public LibraryManifest Manifest { get; } = new LibraryManifest
     {
         Id = "cl.postgresql",
