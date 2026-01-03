@@ -188,7 +188,7 @@ public class ExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
         return node;
     }
 
-    private Expression VisitMethodCall(MethodCallExpression node)
+    private new Expression VisitMethodCall(MethodCallExpression node)
     {
         var method = node.Method;
         var member = GetMemberExpression(node.Object) ?? GetMemberExpression(node.Arguments.FirstOrDefault());

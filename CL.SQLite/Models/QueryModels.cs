@@ -181,7 +181,7 @@ public class WhereCondition
     public required string Column { get; set; }
 
     /// <summary>
-    /// Gets or sets the comparison operator (=, !=, >, <, >=, <=, LIKE, IN, IS, IS NOT)
+    /// Gets or sets the comparison operator (=, !=, &gt;, &lt;, &gt;=, &lt;=, LIKE, IN, IS, IS NOT)
     /// </summary>
     public required string Operator { get; set; }
 
