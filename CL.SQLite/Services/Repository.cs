@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.Data.Sqlite;
@@ -58,7 +59,8 @@ public class Repository<T> where T : class, new()
                 var columnName = colAttr?.ColumnName ?? prop.Name;
                 columns.Add(columnName);
                 parameters.Add($"@{columnName}");
-                values[columnName] = prop.GetValue(entity);
+                var value = prop.GetValue(entity);
+                values[columnName] = ConvertToDbValue(value, prop.PropertyType);
             }
 
             var sql = $"INSERT INTO {_tableName} ({string.Join(", ", columns)}) VALUES ({string.Join(", ", parameters)}); SELECT last_insert_rowid();";
@@ -108,7 +110,8 @@ public class Repository<T> where T : class, new()
                 var columnName = colAttr?.ColumnName ?? prop.Name;
                 columns.Add(columnName);
                 parameters.Add($"@{columnName}");
-                values[columnName] = prop.GetValue(entity);
+                var value = prop.GetValue(entity);
+                values[columnName] = ConvertToDbValue(value, prop.PropertyType);
             }
 
             var sql = $"INSERT OR REPLACE INTO {_tableName} ({string.Join(", ", columns)}) VALUES ({string.Join(", ", parameters)});";
@@ -221,12 +224,12 @@ public class Repository<T> where T : class, new()
                 // Check if this is the primary key column
                 if (colAttr?.IsPrimaryKey == true || prop.Name == "Id")
                 {
-                    pkValue = value;
+                    pkValue = ConvertToDbValue(value, prop.PropertyType);
                 }
                 else if (colAttr?.IsAutoIncrement != true)
                 {
                     setParts.Add($"{columnName} = @{columnName}");
-                    values[columnName] = value;
+                    values[columnName] = ConvertToDbValue(value, prop.PropertyType);
                 }
             }
 
@@ -336,7 +339,8 @@ public class Repository<T> where T : class, new()
                 if (!reader.IsDBNull(ordinal))
                 {
                     var value = reader.GetValue(ordinal);
-                    prop.SetValue(entity, Convert.ChangeType(value, prop.PropertyType));
+                    var converted = ConvertFromDbValue(value, prop.PropertyType);
+                    prop.SetValue(entity, converted);
                 }
             }
             catch
@@ -367,5 +371,45 @@ public class Repository<T> where T : class, new()
             return primaryKeys[0];
 
         return "Id"; // Default fallback
+    }
+
+    private static object? ConvertToDbValue(object? value, Type propertyType)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var targetType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
+        if (targetType.IsEnum)
+        {
+            var underlying = Enum.GetUnderlyingType(targetType);
+            return Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture);
+        }
+
+        return value;
+    }
+
+    private static object? ConvertFromDbValue(object value, Type propertyType)
+    {
+        if (value == null || value is DBNull)
+        {
+            return null;
+        }
+
+        var targetType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
+        if (targetType.IsEnum)
+        {
+            if (value is string str)
+            {
+                return Enum.Parse(targetType, str, true);
+            }
+
+            var underlying = Enum.GetUnderlyingType(targetType);
+            var converted = Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture);
+            return Enum.ToObject(targetType, converted!);
+        }
+
+        return Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
     }
 }

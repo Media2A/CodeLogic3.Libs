@@ -2,6 +2,7 @@ using CodeLogic.Abstractions;
 using CodeLogic.Logging;
 using CL.SQLite.Models;
 using Microsoft.Data.Sqlite;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
@@ -418,7 +419,8 @@ public class QueryBuilder<T> where T : class, new()
     {
         foreach (var (key, value) in parameters)
         {
-            cmd.Parameters.AddWithValue(key, value ?? DBNull.Value);
+            var converted = ConvertToDbValue(value, value?.GetType() ?? typeof(object));
+            cmd.Parameters.AddWithValue(key, converted ?? DBNull.Value);
         }
     }
 
@@ -439,7 +441,8 @@ public class QueryBuilder<T> where T : class, new()
 
                 if (value != DBNull.Value)
                 {
-                    prop.SetValue(entity, Convert.ChangeType(value, prop.PropertyType));
+                    var converted = ConvertFromDbValue(value, prop.PropertyType);
+                    prop.SetValue(entity, converted);
                 }
             }
             catch
@@ -449,5 +452,45 @@ public class QueryBuilder<T> where T : class, new()
         }
 
         return entity;
+    }
+
+    private static object? ConvertToDbValue(object? value, Type valueType)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var targetType = Nullable.GetUnderlyingType(valueType) ?? valueType;
+        if (targetType.IsEnum)
+        {
+            var underlying = Enum.GetUnderlyingType(targetType);
+            return Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture);
+        }
+
+        return value;
+    }
+
+    private static object? ConvertFromDbValue(object value, Type propertyType)
+    {
+        if (value == null || value is DBNull)
+        {
+            return null;
+        }
+
+        var targetType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
+        if (targetType.IsEnum)
+        {
+            if (value is string str)
+            {
+                return Enum.Parse(targetType, str, true);
+            }
+
+            var underlying = Enum.GetUnderlyingType(targetType);
+            var converted = Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture);
+            return Enum.ToObject(targetType, converted!);
+        }
+
+        return Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
     }
 }
