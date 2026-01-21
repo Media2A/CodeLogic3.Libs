@@ -175,9 +175,28 @@ public static class PasswordGenerator
 /// </summary>
 public enum PasswordStrength
 {
+    /// <summary>
+    /// Very weak password strength.
+    /// </summary>
     VeryWeak = 0,
+    
+    /// <summary>
+    /// Weak password strength.
+    /// </summary>
     Weak = 1,
+    
+    /// <summary>
+    /// Medium password strength.
+    /// </summary>
     Medium = 2,
+    
+    /// <summary>
+    /// Strong password strength.
+    /// </summary>
     Strong = 3,
+    
+    /// <summary>
+    /// Very strong password strength.
+    /// </summary>
     VeryStrong = 4
 }

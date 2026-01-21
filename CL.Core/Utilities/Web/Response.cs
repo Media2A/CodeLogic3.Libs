@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -18,7 +18,14 @@ namespace CL.Core.Utilities
         /// </summary>
         public enum CachingType
         {
+            /// <summary>
+            /// Caching is disabled.
+            /// </summary>
             DISABLED,
+            
+            /// <summary>
+            /// Browser caching is enabled.
+            /// </summary>
             BROWSER
         }
 
@@ -131,21 +138,84 @@ namespace CL.Core.Utilities
             /// </summary>
             public enum ContentTypeEnum
             {
+                /// <summary>
+                /// HTML content type.
+                /// </summary>
                 Html,
+                
+                /// <summary>
+                /// Plain text content type.
+                /// </summary>
                 Plain,
+                
+                /// <summary>
+                /// JSON content type.
+                /// </summary>
                 Json,
+                
+                /// <summary>
+                /// XML content type.
+                /// </summary>
                 Xml,
+                
+                /// <summary>
+                /// JavaScript content type.
+                /// </summary>
                 Javascript,
+                
+                /// <summary>
+                /// Octet stream (binary) content type.
+                /// </summary>
                 OctetStream,
+                
+                /// <summary>
+                /// PDF content type.
+                /// </summary>
                 Pdf,
+                
+                /// <summary>
+                /// PNG image content type.
+                /// </summary>
                 Png,
+                
+                /// <summary>
+                /// GIF image content type.
+                /// </summary>
                 Gif,
+                
+                /// <summary>
+                /// SVG XML content type.
+                /// </summary>
                 SvgXml,
+                
+                /// <summary>
+                /// CSS content type.
+                /// </summary>
                 Css,
+                
+                /// <summary>
+                /// CSV content type.
+                /// </summary>
                 Csv,
+                
+                /// <summary>
+                /// ZIP archive content type.
+                /// </summary>
                 Zip,
+                
+                /// <summary>
+                /// URL encoded content type.
+                /// </summary>
                 UrlEncoded,
+                
+                /// <summary>
+                /// Form data content type.
+                /// </summary>
                 FormData,
+                
+                /// <summary>
+                /// MPEG content type.
+                /// </summary>
                 Mpeg,
                 Mp4
             }
@@ -327,10 +397,13 @@ namespace CL.Core.Utilities
             return minifiedHtml;
         }
 
-        /// <summary> Preserves the content within a specific HTML tag by replacing '>' and '<' to
-        /// avoid minifying the content inside. </summary> <param name="input">The HTML input
-        /// string.</param> <param name="tag">The tag name to preserve.</param> <returns>The HTML
-        /// string with preserved tag content.</returns>
+        /// <summary>
+        /// Preserves the content within a specific HTML tag by replacing '&gt;' and '&lt;' to
+        /// avoid minifying the content inside.
+        /// </summary>
+        /// <param name="input">The HTML input string.</param>
+        /// <param name="tag">The tag name to preserve.</param>
+        /// <returns>The HTML string with preserved tag content.</returns>
         private static string PreserveTagContent(string input, string tag)
         {
             int startIndex = 0;

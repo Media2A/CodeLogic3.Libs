@@ -685,25 +685,59 @@ public class AggregateFunction
 /// <summary>
 /// Enumerates the types of JOINs.
 /// </summary>
-public enum JoinType
-{
-    Inner,
-    Left,
-    Right,
-    Full
-}
+    public enum JoinType
+    {
+        /// <summary>
+        /// Inner join type.
+        /// </summary>
+        Inner,
+        
+        /// <summary>
+        /// Left join type.
+        /// </summary>
+        Left,
+        
+        /// <summary>
+        /// Right join type.
+        /// </summary>
+        Right,
+        
+        /// <summary>
+        /// Full outer join type.
+        /// </summary>
+        Full
+    }
 
 /// <summary>
 /// Enumerates aggregate function types.
 /// </summary>
-public enum AggregateType
-{
-    Count,
-    Sum,
-    Avg,
-    Min,
-    Max
-}
+    public enum AggregateType
+    {
+        /// <summary>
+        /// COUNT aggregate function.
+        /// </summary>
+        Count,
+        
+        /// <summary>
+        /// SUM aggregate function.
+        /// </summary>
+        Sum,
+        
+        /// <summary>
+        /// AVG (average) aggregate function.
+        /// </summary>
+        Avg,
+        
+        /// <summary>
+        /// MIN aggregate function.
+        /// </summary>
+        Min,
+        
+        /// <summary>
+        /// MAX aggregate function.
+        /// </summary>
+        Max
+    }
 
 /// <summary>
 /// Non-generic query builder factory for PostgreSQL.

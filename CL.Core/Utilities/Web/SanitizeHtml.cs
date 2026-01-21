@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -107,7 +107,7 @@ namespace CL.Core.Utilities
         ///  - Walks every tag (not just outer pairs), so nested content is sanitized.
         ///  - Drops disallowed tags/attrs and event handlers (on*).
         ///  - Blocks javascript:, vbscript:, and non-image data: URIs.
-        ///  - Normalizes void elements (<img>, <br>, etc.) to self-closing.
+        ///  - Normalizes void elements (&lt;img&gt;, &lt;br&gt;, etc.) to self-closing.
         /// </summary>
         public static string SanitizeHtml(string input, List<string> allowedTags = null, Dictionary<string, List<string>> allowedAttributes = null)
         {

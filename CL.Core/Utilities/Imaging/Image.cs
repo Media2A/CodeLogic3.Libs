@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using ImageMagick;
 
@@ -14,10 +14,29 @@ namespace CL.Core.Utilities
         /// </summary>
         public enum ImageFormat
         {
+            /// <summary>
+            /// JPEG image format.
+            /// </summary>
             Jpeg,
+            
+            /// <summary>
+            /// PNG image format.
+            /// </summary>
             Png,
+            
+            /// <summary>
+            /// WebP image format.
+            /// </summary>
             Webp,
+            
+            /// <summary>
+            /// BMP image format.
+            /// </summary>
             Bmp,
+            
+            /// <summary>
+            /// GIF image format.
+            /// </summary>
             Gif,
         }
 
