@@ -95,6 +95,7 @@ public class Repository<T> where T : class, new()
 
                 var lastInsertId = await cmd.ExecuteScalarAsync(cancellationToken);
                 SetPrimaryKeyValue(entity, lastInsertId);
+                await InvalidateTableCacheAsync();
 
                 if (_config.EnableLogging)
                     _logger?.Debug($"Inserted record into {_tableName}");
@@ -126,10 +127,11 @@ public class Repository<T> where T : class, new()
         {
             return await ExecuteDbOperationAsync(async (connection, transaction) =>
             {
+                var defaultInstance = new T();
                 var properties = GetCachedProperties()
                     .Where(p => {
                         var attr = p.GetCustomAttribute<ColumnAttribute>();
-                        return attr != null && !attr.AutoIncrement && (attr.DefaultValue == null || !p.GetValue(new T())!.Equals(GetDefaultValue(p.PropertyType)));
+                        return attr != null && !attr.AutoIncrement && (attr.DefaultValue == null || !p.GetValue(defaultInstance)!.Equals(GetDefaultValue(p.PropertyType)));
                     }).ToList();
 
                 var columnNames = properties.Select(p => $"`{p.GetCustomAttribute<ColumnAttribute>()?.Name ?? p.Name}`").ToList();
@@ -165,6 +167,7 @@ public class Repository<T> where T : class, new()
                 }
 
                 var rowsAffected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                await InvalidateTableCacheAsync();
 
                 if (_config.EnableLogging)
                     _logger?.Debug($"Inserted {rowsAffected} records into {_tableName}");
@@ -339,8 +342,14 @@ public class Repository<T> where T : class, new()
 
             return await ExecuteDbOperationAsync(async (connection, transaction) =>
             {
-                // Note: CountAsync will use its own operation scope, which is fine.
-                var totalItems = (await CountAsync(cancellationToken)).Data;
+                // Inline COUNT to reuse the existing connection
+                int totalItems;
+                {
+                    var countSql = $"SELECT COUNT(*) FROM `{_tableName}`";
+                    using var countCmd = new MySqlCommand(countSql, connection, transaction);
+                    var countResult = await countCmd.ExecuteScalarAsync(cancellationToken);
+                    totalItems = Convert.ToInt32(countResult);
+                }
 
                 var offset = (page - 1) * pageSize;
                 var sql = $"SELECT * FROM `{_tableName}` LIMIT @pageSize OFFSET @offset";
@@ -444,6 +453,7 @@ public class Repository<T> where T : class, new()
                     cmd.Parameters.AddWithValue(param.Key, param.Value ?? DBNull.Value);
 
                 var rowsAffected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                await InvalidateTableCacheAsync();
 
                 if (_config.EnableLogging)
                     _logger?.Debug($"Updated {rowsAffected} record(s) in {_tableName}");
@@ -481,6 +491,7 @@ public class Repository<T> where T : class, new()
                 cmd.Parameters.AddWithValue("@id", id ?? DBNull.Value);
 
                 var rowsAffected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                await InvalidateTableCacheAsync();
 
                 if (_config.EnableLogging)
                     _logger?.Debug($"Deleted {rowsAffected} record(s) from {_tableName}");
@@ -529,6 +540,7 @@ public class Repository<T> where T : class, new()
                 cmd.Parameters.AddWithValue("@id", id ?? DBNull.Value);
 
                 var rowsAffected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                await InvalidateTableCacheAsync();
 
                 if (_config.EnableLogging)
                     _logger?.Debug($"Incremented {columnName} by {amount} in {_tableName}");
@@ -586,6 +598,7 @@ public class Repository<T> where T : class, new()
                 cmd.Parameters.AddWithValue("@id", id ?? DBNull.Value);
 
                 var rowsAffected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                await InvalidateTableCacheAsync();
 
                 if (_config.EnableLogging)
                     _logger?.Debug($"Decremented {columnName} by {amount} in {_tableName}");
@@ -614,16 +627,28 @@ public class Repository<T> where T : class, new()
         {
             return await ExecuteDbOperationAsync(async (connection, transaction) =>
             {
+                var conditionsList = conditions.ToList();
                 var whereClauses = new List<string>();
                 var parameters = new Dictionary<string, object>();
 
-                foreach (var condition in conditions)
+                foreach (var condition in conditionsList)
                 {
                     whereClauses.Add($"`{condition.Column}` {condition.Operator} @{condition.Column}");
                     parameters.Add($"@{condition.Column}", condition.Value);
                 }
 
-                var whereSql = whereClauses.Any() ? $"WHERE {string.Join(" AND ", whereClauses)}" : "";
+                var whereSql = "";
+                if (whereClauses.Any())
+                {
+                    var sb = new System.Text.StringBuilder("WHERE ");
+                    for (int i = 0; i < conditionsList.Count; i++)
+                    {
+                        if (i > 0)
+                            sb.Append($" {conditionsList[i].LogicalOperator} ");
+                        sb.Append(whereClauses[i]);
+                    }
+                    whereSql = sb.ToString();
+                }
 
                 var countSql = $"SELECT COUNT(*) FROM `{_tableName}` {whereSql}";
                 using var countCmd = new MySqlCommand(countSql, connection, transaction);
@@ -744,20 +769,16 @@ public class Repository<T> where T : class, new()
 
             var columnName = columnAttr.Name ?? prop.Name;
 
-            try
-            {
-                var ordinal = reader.GetOrdinal(columnName);
-                var value = reader.GetValue(ordinal);
+            if (!reader.HasColumn(columnName))
+                continue;
 
-                if (value != DBNull.Value)
-                {
-                    var convertedValue = TypeConverter.FromMySql(value, columnAttr.DataType, prop.PropertyType);
-                    prop.SetValue(entity, convertedValue);
-                }
-            }
-            catch
+            var ordinal = reader.GetOrdinal(columnName);
+            var value = reader.GetValue(ordinal);
+
+            if (value != DBNull.Value)
             {
-                // Column doesn't exist in result set, skip
+                var convertedValue = TypeConverter.FromMySql(value, columnAttr.DataType, prop.PropertyType);
+                prop.SetValue(entity, convertedValue);
             }
         }
 
@@ -777,6 +798,15 @@ public class Repository<T> where T : class, new()
         {
             var convertedValue = Convert.ChangeType(value, primaryKey.PropertyType);
             primaryKey.SetValue(entity, convertedValue);
+        }
+    }
+
+    private async Task InvalidateTableCacheAsync()
+    {
+        if (_cache != null && _config.EnableCaching)
+        {
+            await _cache.RemoveByPrefixAsync($"{_tableName}:");
+            _logger?.Debug($"Invalidated cache for table {_tableName}");
         }
     }
 

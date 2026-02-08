@@ -1,19 +1,19 @@
 using CodeLogic.Logging;
 using CL.Mail.Models;
-using CodeLogic.Abstractions;
-using System.Net;
-using System.Net.Mail;
-using System.Security.Authentication;
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using MimeKit;
 
 namespace CL.Mail.Services;
 
 /// <summary>
-/// SMTP email service for sending emails
+/// SMTP email service for sending emails using MailKit
 /// </summary>
-public class SmtpService
+public class SmtpService : IDisposable
 {
     private readonly SmtpConfiguration _config;
     private readonly ILogger _logger;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the SmtpService
@@ -33,45 +33,48 @@ public class SmtpService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Validate configuration
             var configValidation = ValidateConfiguration();
             if (!configValidation.IsSuccess)
                 return configValidation;
 
-            // Validate message
             var messageValidation = ValidateMessage(message);
             if (!messageValidation.IsSuccess)
                 return messageValidation;
 
-            using var smtpClient = CreateSmtpClient();
-            using var mailMessage = CreateMailMessage(message);
+            var mimeMessage = CreateMimeMessage(message);
 
-            try
+            using var client = new SmtpClient();
+            client.Timeout = _config.TimeoutSeconds * 1000;
+
+            var secureOption = MapSecurityMode(_config.SecurityMode);
+
+            await client.ConnectAsync(_config.Host, _config.Port, secureOption, cancellationToken).ConfigureAwait(false);
+
+            if (!string.IsNullOrWhiteSpace(_config.Username))
             {
-                await smtpClient.SendMailAsync(mailMessage, cancellationToken).ConfigureAwait(false);
-                _logger.Info($"Email sent to {string.Join(", ", message.To)}");
-                return MailResult.Success();
+                await client.AuthenticateAsync(_config.Username, _config.Password, cancellationToken).ConfigureAwait(false);
             }
-            catch (SmtpException ex) when (ex.InnerException is AuthenticationException)
-            {
-                _logger.Error("SMTP authentication failed", ex);
-                return MailResult.Failure(MailError.SmtpAuthenticationFailed, "SMTP authentication failed");
-            }
-            catch (SmtpException ex) when (ex.StatusCode == SmtpStatusCode.MustIssueStartTlsFirst)
-            {
-                _logger.Error("SMTP TLS required but not available", ex);
-                return MailResult.Failure(MailError.SmtpError, "SMTP TLS required");
-            }
-            catch (SmtpException ex) when (ex.StatusCode == SmtpStatusCode.TransactionFailed)
-            {
-                _logger.Error("SMTP transaction failed", ex);
-                return MailResult.Failure(MailError.SmtpRejected, "Message rejected by server");
-            }
-            catch (SmtpException ex)
-            {
-                _logger.Error("SMTP error", ex);
-                return MailResult.Failure(MailError.SmtpError, ex.Message);
-            }
+
+            var response = await client.SendAsync(mimeMessage, cancellationToken).ConfigureAwait(false);
+            await client.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
+
+            _logger.Info($"Email sent to {string.Join(", ", message.To)}");
+            return MailResult.Success(mimeMessage.MessageId);
+        }
+        catch (SmtpCommandException ex)
+        {
+            _logger.Error("SMTP command error", ex);
+            return MailResult.Failure(MailError.SmtpRejected, ex.Message);
+        }
+        catch (SmtpProtocolException ex)
+        {
+            _logger.Error("SMTP protocol error", ex);
+            return MailResult.Failure(MailError.SmtpError, ex.Message);
+        }
+        catch (AuthenticationException ex)
+        {
+            _logger.Error("SMTP authentication failed", ex);
+            return MailResult.Failure(MailError.SmtpAuthenticationFailed, "SMTP authentication failed");
         }
         catch (OperationCanceledException)
         {
@@ -131,95 +134,80 @@ public class SmtpService
     }
 
     /// <summary>
-    /// Creates an SMTP client
+    /// Creates a MimeMessage from a MailMessage record
     /// </summary>
-    private SmtpClient CreateSmtpClient()
+    private MimeMessage CreateMimeMessage(Models.MailMessage message)
     {
-        var client = new SmtpClient(_config.Host, _config.Port)
-        {
-            Credentials = new NetworkCredential(_config.Username, _config.Password),
-            Timeout = _config.TimeoutSeconds * 1000,
-            DeliveryMethod = SmtpDeliveryMethod.Network
-        };
+        var mime = new MimeMessage();
 
-        // Configure SSL/TLS
-        client.EnableSsl = _config.SecurityMode != SmtpSecurityMode.None;
+        mime.From.Add(new MailboxAddress(message.FromName ?? message.From, message.From));
 
-        if (_config.UseConnectionPooling && _config.MaxPooledConnections > 0)
-        {
-            client.ServicePoint.ConnectionLimit = _config.MaxPooledConnections;
-        }
-
-        return client;
-    }
-
-    /// <summary>
-    /// Creates a MailMessage from a MailMessage record
-    /// </summary>
-    private System.Net.Mail.MailMessage CreateMailMessage(Models.MailMessage message)
-    {
-        var mail = new System.Net.Mail.MailMessage
-        {
-            From = new MailAddress(message.From, message.FromName),
-            Subject = message.Subject,
-            IsBodyHtml = !string.IsNullOrWhiteSpace(message.HtmlBody)
-        };
-
-        // Add recipients
         foreach (var to in message.To)
-            mail.To.Add(new MailAddress(to));
+            mime.To.Add(MailboxAddress.Parse(to));
 
-        // Add CC recipients
         foreach (var cc in message.Cc)
-            mail.CC.Add(new MailAddress(cc));
+            mime.Cc.Add(MailboxAddress.Parse(cc));
 
-        // Add BCC recipients
         foreach (var bcc in message.Bcc)
-            mail.Bcc.Add(new MailAddress(bcc));
+            mime.Bcc.Add(MailboxAddress.Parse(bcc));
 
-        // Handle body - prefer multipart if both text and HTML exist
-        if (!string.IsNullOrWhiteSpace(message.TextBody) && !string.IsNullOrWhiteSpace(message.HtmlBody))
+        mime.Subject = message.Subject;
+
+        // Set priority
+        mime.Importance = message.Priority switch
         {
-            mail.AlternateViews.Add(
-                AlternateView.CreateAlternateViewFromString(message.TextBody, null, "text/plain"));
-            mail.AlternateViews.Add(
-                AlternateView.CreateAlternateViewFromString(message.HtmlBody, null, "text/html"));
-            mail.Body = message.HtmlBody; // Fallback
-        }
-        else if (!string.IsNullOrWhiteSpace(message.HtmlBody))
+            Models.MailPriority.Low => MessageImportance.Low,
+            Models.MailPriority.High => MessageImportance.High,
+            _ => MessageImportance.Normal
+        };
+
+        // Add custom headers
+        foreach (var header in message.Headers)
         {
-            mail.Body = message.HtmlBody;
-            mail.IsBodyHtml = true;
+            mime.Headers.Add(header.Key, header.Value);
         }
-        else if (!string.IsNullOrWhiteSpace(message.TextBody))
-        {
-            mail.Body = message.TextBody;
-            mail.IsBodyHtml = false;
-        }
+
+        // Build body with MimeKit BodyBuilder
+        var builder = new BodyBuilder();
+
+        if (!string.IsNullOrWhiteSpace(message.TextBody))
+            builder.TextBody = message.TextBody;
+
+        if (!string.IsNullOrWhiteSpace(message.HtmlBody))
+            builder.HtmlBody = message.HtmlBody;
 
         // Add attachments
         foreach (var attachmentPath in message.Attachments)
         {
             if (File.Exists(attachmentPath))
             {
-                mail.Attachments.Add(new Attachment(attachmentPath));
+                builder.Attachments.Add(attachmentPath);
             }
         }
 
-        // Add headers
-        foreach (var header in message.Headers)
-        {
-            mail.Headers.Add(header.Key, header.Value);
-        }
+        mime.Body = builder.ToMessageBody();
 
-        // Set priority
-        mail.Priority = message.Priority switch
-        {
-            Models.MailPriority.Low => System.Net.Mail.MailPriority.Low,
-            Models.MailPriority.High => System.Net.Mail.MailPriority.High,
-            _ => System.Net.Mail.MailPriority.Normal
-        };
+        return mime;
+    }
 
-        return mail;
+    /// <summary>
+    /// Maps SmtpSecurityMode to MailKit SecureSocketOptions
+    /// </summary>
+    private static SecureSocketOptions MapSecurityMode(SmtpSecurityMode mode) => mode switch
+    {
+        SmtpSecurityMode.None => SecureSocketOptions.None,
+        SmtpSecurityMode.StartTls => SecureSocketOptions.StartTls,
+        SmtpSecurityMode.SslTls => SecureSocketOptions.SslOnConnect,
+        _ => SecureSocketOptions.Auto
+    };
+
+    /// <summary>
+    /// Disposes the service
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

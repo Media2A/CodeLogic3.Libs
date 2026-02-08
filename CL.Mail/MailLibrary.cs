@@ -7,7 +7,7 @@ namespace CL.Mail;
 
 /// <summary>
 /// Mail Library for CodeLogic 3.0 Framework
-/// Provides email sending capabilities with SMTP and template system
+/// Provides email sending via SMTP, receiving via IMAP, and an advanced template system
 /// </summary>
 public class MailLibrary : ILibrary
 {
@@ -19,13 +19,14 @@ public class MailLibrary : ILibrary
         Id = "mail",
         Name = "Mail Library",
         Version = "3.0.0",
-        Description = "Modern email library with advanced template system and SMTP support",
+        Description = "Modern email library with SMTP, IMAP and advanced template system",
         Author = "Media2A.com",
         Dependencies = Array.Empty<LibraryDependency>()
     };
 
     private LibraryContext? _context;
     private SmtpService? _smtpService;
+    private ImapService? _imapService;
     private IMailTemplateProvider? _templateProvider;
     private IMailTemplateEngine? _templateEngine;
     private MailConfiguration? _config;
@@ -78,14 +79,21 @@ public class MailLibrary : ILibrary
         // Initialize SMTP service
         _smtpService = new SmtpService(_config.Smtp, context.Logger);
 
-        // Initialize template provider
+        // Initialize template provider first (needed by template engine for layouts)
         _templateProvider = new FileMailTemplateProvider(_config.TemplateDirectory, context.Logger);
 
-        // Initialize template engine
-        _templateEngine = new SimpleTemplateEngine(context.Logger);
+        // Initialize template engine with provider for layout support
+        _templateEngine = new SimpleTemplateEngine(context.Logger, _templateProvider);
 
         context.Logger.Info($"Initialized SMTP service (Host: {_config.Smtp.Host}:{_config.Smtp.Port})");
         context.Logger.Info($"Template directory: {_config.TemplateDirectory}");
+
+        // Initialize IMAP service if configured
+        if (_config.Imap != null)
+        {
+            _imapService = new ImapService(_config.Imap, context.Logger);
+            context.Logger.Info($"Initialized IMAP service (Host: {_config.Imap.Host}:{_config.Imap.Port})");
+        }
 
         context.Logger.Info("Mail library initialized successfully");
     }
@@ -116,12 +124,22 @@ public class MailLibrary : ILibrary
 
         _context?.Logger.Info("Stopping Mail library...");
 
+        // Disconnect and dispose IMAP
+        if (_imapService != null)
+        {
+            await _imapService.DisconnectAsync().ConfigureAwait(false);
+            _imapService.Dispose();
+            _imapService = null;
+        }
+
+        // Dispose SMTP
+        _smtpService?.Dispose();
         _smtpService = null;
+
         _templateProvider = null;
         _templateEngine = null;
 
         _context?.Logger.Info("Mail library stopped");
-        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -141,11 +159,11 @@ public class MailLibrary : ILibrary
 
         try
         {
-            // Basic health check - verify services are instantiated
             var smtpConfigValid = !string.IsNullOrWhiteSpace(_config.Smtp.Host);
+            var imapInfo = _config.Imap != null ? $", IMAP: {_config.Imap.Host}:{_config.Imap.Port}" : "";
 
             if (smtpConfigValid)
-                return HealthStatus.Healthy($"Mail services operational (SMTP: {_config.Smtp.Host}:{_config.Smtp.Port})");
+                return HealthStatus.Healthy($"Mail services operational (SMTP: {_config.Smtp.Host}:{_config.Smtp.Port}{imapInfo})");
             else
                 return HealthStatus.Degraded("SMTP configuration incomplete");
         }
@@ -160,7 +178,12 @@ public class MailLibrary : ILibrary
     /// </summary>
     public void Dispose()
     {
+        _imapService?.Dispose();
+        _imapService = null;
+
+        _smtpService?.Dispose();
         _smtpService = null;
+
         _templateProvider = null;
         _templateEngine = null;
 
@@ -180,6 +203,17 @@ public class MailLibrary : ILibrary
             throw new InvalidOperationException("Mail library not initialized");
 
         return _smtpService;
+    }
+
+    /// <summary>
+    /// Gets the IMAP service for reading emails
+    /// </summary>
+    public ImapService GetImapService()
+    {
+        if (_imapService == null)
+            throw new InvalidOperationException("IMAP is not configured. Set the Imap section in mail configuration.");
+
+        return _imapService;
     }
 
     /// <summary>

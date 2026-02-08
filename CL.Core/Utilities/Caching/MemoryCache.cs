@@ -6,10 +6,11 @@ namespace CL.Core.Utilities.Caching;
 /// In-memory cache implementation with expiration support.
 /// Thread-safe and suitable for single-instance applications.
 /// </summary>
-public class MemoryCache : ICache
+public class MemoryCache : ICache, IDisposable
 {
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
     private readonly CacheOptions _options;
+    private readonly CancellationTokenSource _cleanupCts = new();
     private long _hits;
     private long _misses;
 
@@ -24,7 +25,7 @@ public class MemoryCache : ICache
         // Start cleanup task if auto-cleanup is enabled
         if (_options.AutoCleanupInterval.HasValue)
         {
-            _ = Task.Run(AutoCleanupLoop);
+            _ = Task.Run(() => AutoCleanupLoop(_cleanupCts.Token));
         }
     }
 
@@ -131,6 +132,23 @@ public class MemoryCache : ICache
     }
 
     /// <summary>
+    /// Removes all cache entries whose keys start with the specified prefix.
+    /// </summary>
+    public Task<int> RemoveByPrefixAsync(string prefix)
+    {
+        var count = 0;
+        foreach (var key in _cache.Keys)
+        {
+            if (key.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                if (_cache.TryRemove(key, out _))
+                    count++;
+            }
+        }
+        return Task.FromResult(count);
+    }
+
+    /// <summary>
     /// Clears all cache entries and resets statistics.
     /// </summary>
     public Task ClearAsync()
@@ -182,13 +200,21 @@ public class MemoryCache : ICache
 
     private void RemoveOldestEntry()
     {
-        var oldest = _cache
-            .OrderBy(x => x.Value.CreatedAt)
-            .FirstOrDefault();
+        string? oldestKey = null;
+        var oldestTime = DateTime.MaxValue;
 
-        if (!oldest.Equals(default(KeyValuePair<string, CacheEntry>)))
+        foreach (var kvp in _cache)
         {
-            _cache.TryRemove(oldest.Key, out _);
+            if (kvp.Value.CreatedAt < oldestTime)
+            {
+                oldestTime = kvp.Value.CreatedAt;
+                oldestKey = kvp.Key;
+            }
+        }
+
+        if (oldestKey != null)
+        {
+            _cache.TryRemove(oldestKey, out _);
         }
     }
 
@@ -206,20 +232,33 @@ public class MemoryCache : ICache
         }
     }
 
-    private async Task AutoCleanupLoop()
+    private async Task AutoCleanupLoop(CancellationToken cancellationToken)
     {
-        while (true)
+        while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                await Task.Delay(_options.AutoCleanupInterval!.Value);
+                await Task.Delay(_options.AutoCleanupInterval!.Value, cancellationToken);
                 CleanupExpiredEntries();
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
             catch
             {
                 // Continue cleanup loop even if one iteration fails
             }
         }
+    }
+
+    /// <summary>
+    /// Stops the cleanup loop and releases resources.
+    /// </summary>
+    public void Dispose()
+    {
+        _cleanupCts.Cancel();
+        _cleanupCts.Dispose();
     }
 
     private class CacheEntry

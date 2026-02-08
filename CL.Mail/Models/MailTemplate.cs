@@ -51,6 +51,11 @@ public record MailTemplate
     public DateTime? ModifiedAt { get; init; }
 
     /// <summary>
+    /// Gets the optional layout template ID to wrap this template in
+    /// </summary>
+    public string? Layout { get; init; }
+
+    /// <summary>
     /// Gets any template metadata
     /// </summary>
     public IReadOnlyDictionary<string, object> Metadata { get; init; } = new Dictionary<string, object>();

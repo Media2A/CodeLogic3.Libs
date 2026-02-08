@@ -1,4 +1,5 @@
 using CL.Mail.Models;
+using System.Text.RegularExpressions;
 
 namespace CL.Mail.Services;
 
@@ -13,8 +14,15 @@ public class TemplateBuilder
     private string? _subject;
     private string? _textBody;
     private string? _htmlBody;
+    private string? _layout;
     private readonly List<string> _variables = new();
     private readonly Dictionary<string, object> _metadata = new();
+
+    // Control keywords that should not be extracted as variable names
+    private static readonly HashSet<string> ControlKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "if", "else", "each", "section", "layout"
+    };
 
     /// <summary>
     /// Sets the template ID
@@ -49,7 +57,6 @@ public class TemplateBuilder
     public TemplateBuilder Subject(string subject)
     {
         _subject = subject;
-        // Extract variables from subject
         ExtractVariables(subject);
         return this;
     }
@@ -83,6 +90,15 @@ public class TemplateBuilder
         _htmlBody = htmlBody;
         ExtractVariables(textBody);
         ExtractVariables(htmlBody);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the layout template ID to wrap this template in
+    /// </summary>
+    public TemplateBuilder Layout(string layoutId)
+    {
+        _layout = layoutId;
         return this;
     }
 
@@ -141,43 +157,44 @@ public class TemplateBuilder
             Subject = _subject,
             TextBody = _textBody,
             HtmlBody = _htmlBody,
+            Layout = _layout,
             Variables = _variables.AsReadOnly(),
             Metadata = _metadata.AsReadOnly()
         };
     }
 
     /// <summary>
-    /// Extracts variable names from template text
+    /// Extracts variable names from template text, excluding control keywords
     /// </summary>
     private void ExtractVariables(string? text)
     {
         if (string.IsNullOrEmpty(text))
             return;
 
-        // Extract {{variable}} format
-        var matches1 = System.Text.RegularExpressions.Regex.Matches(text, @"\{\{(\w+)\}\}");
-        foreach (System.Text.RegularExpressions.Match match in matches1)
+        // Extract {{variable}} format — skip {{#keyword ...}} and {{/keyword}} control blocks
+        var matches1 = Regex.Matches(text, @"\{\{(\w+)\}\}");
+        foreach (Match match in matches1)
         {
             var varName = match.Groups[1].Value;
-            if (!_variables.Contains(varName))
+            if (!ControlKeywords.Contains(varName) && !_variables.Contains(varName))
                 _variables.Add(varName);
         }
 
         // Extract ${variable} format
-        var matches2 = System.Text.RegularExpressions.Regex.Matches(text, @"\$\{(\w+)\}");
-        foreach (System.Text.RegularExpressions.Match match in matches2)
+        var matches2 = Regex.Matches(text, @"\$\{(\w+)\}");
+        foreach (Match match in matches2)
         {
             var varName = match.Groups[1].Value;
-            if (!_variables.Contains(varName))
+            if (!ControlKeywords.Contains(varName) && !_variables.Contains(varName))
                 _variables.Add(varName);
         }
 
-        // Extract {variable} format (legacy)
-        var matches3 = System.Text.RegularExpressions.Regex.Matches(text, @"\{(\w+)\}");
-        foreach (System.Text.RegularExpressions.Match match in matches3)
+        // Extract {variable} format (legacy) — avoid matching {{var}} double-braces
+        var matches3 = Regex.Matches(text, @"(?<!\{)\{(\w+)\}(?!\})");
+        foreach (Match match in matches3)
         {
             var varName = match.Groups[1].Value;
-            if (!_variables.Contains(varName))
+            if (!ControlKeywords.Contains(varName) && !_variables.Contains(varName))
                 _variables.Add(varName);
         }
     }

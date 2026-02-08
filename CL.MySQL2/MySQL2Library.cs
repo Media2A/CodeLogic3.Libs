@@ -212,6 +212,7 @@ public class MySQL2Library : ILibrary
 
         _connectionManager?.Dispose();
         _healthCheckTimer?.Dispose();
+        (_cache as IDisposable)?.Dispose();
 
         _context?.Logger.Info(_strings?.LibraryDisposed ?? "MySQL2 library disposed");
 

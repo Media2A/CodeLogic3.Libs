@@ -38,6 +38,13 @@ public interface ICache
     Task<bool> RemoveAsync(string key);
 
     /// <summary>
+    /// Removes all cache entries whose keys start with the specified prefix.
+    /// </summary>
+    /// <param name="prefix">The key prefix to match.</param>
+    /// <returns>The number of entries removed.</returns>
+    Task<int> RemoveByPrefixAsync(string prefix);
+
+    /// <summary>
     /// Clears all values from the cache.
     /// </summary>
     Task ClearAsync();

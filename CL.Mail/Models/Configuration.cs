@@ -41,6 +41,11 @@ public class MailConfiguration : ConfigModelBase
     public bool EnableHtmlByDefault { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets the IMAP configuration (null = IMAP disabled)
+    /// </summary>
+    public ImapConfiguration? Imap { get; set; }
+
+    /// <summary>
     /// Validates the configuration.
     /// </summary>
     public override ConfigValidationResult Validate()
@@ -55,6 +60,15 @@ public class MailConfiguration : ConfigModelBase
 
         if (string.IsNullOrWhiteSpace(TemplateDirectory))
             errors.Add("TemplateDirectory is required");
+
+        if (Imap != null)
+        {
+            if (string.IsNullOrWhiteSpace(Imap.Host))
+                errors.Add("IMAP Host is required");
+
+            if (Imap.Port < 1 || Imap.Port > 65535)
+                errors.Add("IMAP Port must be between 1 and 65535");
+        }
 
         if (errors.Any())
             return ConfigValidationResult.Invalid(errors);
@@ -110,7 +124,53 @@ public class SmtpConfiguration
 }
 
 /// <summary>
-/// SMTP security modes
+/// IMAP server configuration
+/// </summary>
+public class ImapConfiguration
+{
+    /// <summary>
+    /// Gets or sets the IMAP server hostname
+    /// </summary>
+    public string Host { get; set; } = "imap.example.com";
+
+    /// <summary>
+    /// Gets or sets the IMAP server port
+    /// </summary>
+    public int Port { get; set; } = 993;
+
+    /// <summary>
+    /// Gets or sets the IMAP username
+    /// </summary>
+    public string Username { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the IMAP password
+    /// </summary>
+    public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the security mode (None, StartTls, SslTls)
+    /// </summary>
+    public SmtpSecurityMode SecurityMode { get; set; } = SmtpSecurityMode.SslTls;
+
+    /// <summary>
+    /// Gets or sets the connection timeout in seconds
+    /// </summary>
+    public int TimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Gets or sets whether to enable IDLE push notifications
+    /// </summary>
+    public bool EnableIdle { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the IDLE refresh interval in minutes (RFC 2177 recommends &lt; 29 min)
+    /// </summary>
+    public int IdleRefreshMinutes { get; set; } = 25;
+}
+
+/// <summary>
+/// SMTP security modes (also used for IMAP)
 /// </summary>
 public enum SmtpSecurityMode
 {

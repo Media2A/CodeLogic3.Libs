@@ -78,5 +78,35 @@ public enum MailError
     /// <summary>
     /// Unknown error occurred
     /// </summary>
-    Unknown
+    Unknown,
+
+    /// <summary>
+    /// IMAP configuration missing or invalid
+    /// </summary>
+    ImapConfigInvalid,
+
+    /// <summary>
+    /// IMAP authentication failed
+    /// </summary>
+    ImapAuthenticationFailed,
+
+    /// <summary>
+    /// IMAP connection timeout
+    /// </summary>
+    ImapTimeout,
+
+    /// <summary>
+    /// General IMAP error
+    /// </summary>
+    ImapError,
+
+    /// <summary>
+    /// Mail folder not found
+    /// </summary>
+    FolderNotFound,
+
+    /// <summary>
+    /// Message not found
+    /// </summary>
+    MessageNotFound
 }
